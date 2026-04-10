@@ -1,36 +1,21 @@
-#![allow(unused_variables)]
-use std::env;
-use std::fs;
+use anyhow::Result;
+use clap::Parser;
+use std::path::PathBuf;
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 3 {
-        eprintln!("Usage: {} tokenize <filename>", args[0]);
-        return;
-    }
+#[derive(Parser)]
+#[command(version, about, long_about = None)]
+struct Cli {
+    /// filename of lox file to run, ex. helloworld.lox
+    script: Option<PathBuf>,
+}
 
-    let command = &args[1];
-    let filename = &args[2];
+fn main() -> Result<()> {
+    let cli = Cli::parse();
+    // You can check the value provided by positional arguments, or option arguments
+    match cli.script {
+        Some(path) => jrlox::run_file(path)?,
+        None => jrlox::run_repl()?,
+    };
 
-    match command.as_str() {
-        "tokenize" => {
-            // You can use print statements as follows for debugging, they'll be visible when running tests.
-            eprintln!("Logs from your program will appear here!");
-
-            let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
-                eprintln!("Failed to read file {}", filename);
-                String::new()
-            });
-
-            // TODO: Uncomment the code below to pass the first stage
-            if !file_contents.is_empty() {
-                panic!("Scanner not implemented");
-            } else {
-                println!("EOF  null"); // Placeholder, replace this line when implementing the scanner
-            }
-        }
-        _ => {
-            eprintln!("Unknown command: {}", command);
-        }
-    }
+    Ok(())
 }
