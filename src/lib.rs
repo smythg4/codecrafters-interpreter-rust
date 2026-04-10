@@ -57,6 +57,7 @@ fn run<W: Write>(input: &str, output: &mut W) -> Result<()> {
             Ok(token) => writeln!(output, "{token}")?,
             Err(e) => eprintln!("{e}"),
         }
+        writeln!(output, "EOF  null")?;
     }
 
     Ok(())
