@@ -9,7 +9,7 @@ mod token;
 
 #[derive(Error, Debug)]
 pub enum LoxError {
-    #[error("[line {0}] Error: Unexpected character.")]
+    #[error("[line {0}] Error: Unexpected character: {1}")]
     UnexpectedCharacter(usize, char), // line number and character read
     #[error("[line {0}] Error: Failed to parse number {1}.")]
     ParseNumberFailed(usize, String), // line number and str attempted to parse
