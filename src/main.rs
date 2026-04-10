@@ -1,22 +1,30 @@
 use anyhow::Result;
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 use codecrafters_interpreter::{run_file, run_repl};
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
-struct Cli {
-    /// filename of lox file to run, ex. helloworld.lox
-    script: Option<PathBuf>,
+struct Args {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand, Debug)]
+enum Commands {
+    Tokenize { filename: PathBuf },
+    Parse { filename: PathBuf },
+    Run { filename: PathBuf },
 }
 
 fn main() -> Result<()> {
-    let cli = Cli::parse();
-    // You can check the value provided by positional arguments, or option arguments
-    match cli.script {
-        Some(path) => run_file(path)?,
-        None => run_repl()?,
+    let args = Args::parse();
+    match args.command {
+        Commands::Tokenize { filename } => {
+            run_file(filename)?;
+        },
+        _ => unimplemented!("Haven't done that yet!"),
     };
 
     Ok(())
