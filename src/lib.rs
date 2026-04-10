@@ -9,13 +9,13 @@ mod token;
 
 #[derive(Error, Debug)]
 pub enum LoxError {
-    #[error("[line {0}] Unexpected character.")]
+    #[error("[line {0}] Error: Unexpected character.")]
     UnexpectedCharacter(usize, char), // line number and character read
-    #[error("[line {0}] Failed to parse number {1}.")]
+    #[error("[line {0}] Error: Failed to parse number {1}.")]
     ParseNumberFailed(usize, String), // line number and str attempted to parse
-    #[error("[line {0}] Unterminated string.")]
+    #[error("[line {0}] Error: Unterminated string.")]
     UnterminatedString(usize, String), // line number and str attempted to parse
-    #[error("[line {0}] Unexpected End of File.")]
+    #[error("[line {0}] Error: Unexpected End of File.")]
     UnexpectedEof(usize), // line number
 }
 
@@ -51,14 +51,22 @@ pub fn run_repl() -> Result<()> {
 
 fn run<W: Write>(input: &str, output: &mut W) -> Result<()> {
     let mut lexer = lexer::Lexer::new(input.into());
+    let mut errors_detected = false;
     
     while let Some(result) = lexer.next() {
         match result {
             Ok(token) => writeln!(output, "{token}")?,
-            Err(e) => eprintln!("{e}"),
+            Err(e) => {
+                eprintln!("{e}");
+                errors_detected = true;
+            },
         }
     }
     writeln!(output, "EOF  null")?;
+
+    if errors_detected {
+        std::process::exit(65);
+    }
 
     Ok(())
 }
