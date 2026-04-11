@@ -31,9 +31,13 @@ fn main() -> Result<()> {
             f.read_to_string(&mut contents)?;
 
             let mut parser = LoxParser::new(&contents);
-            let exp = parser.expression()?;
-
-            println!("{}", exp);
+            match parser.expression() {
+                Ok(exp) => println!("{}", exp),
+                Err(e) => {
+                    eprintln!("{e}");
+                    std::process::exit(65);
+                }
+            }
         }
         Commands::Run { filename: _ } => {
             unimplemented!();

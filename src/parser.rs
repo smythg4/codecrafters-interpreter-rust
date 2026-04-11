@@ -35,9 +35,12 @@ impl<'de> TryFrom<Token<'de>> for Literal<'de> {
             TokenKind::True => Literal::Boolean(true),
             TokenKind::False => Literal::Boolean(false),
             TokenKind::Number(n) => Literal::Number(n),
-            TokenKind::String => Literal::String(&value.origin[1..value.origin.len()-1]),
+            TokenKind::String => {
+                //let msg = Token::unescape(value.origin); // Cow -> &str wasn't behaving
+                Literal::String(value.origin.trim_matches('"'))
+            },
             TokenKind::Nil => Literal::Nil,
-            _ => return Err(LoxError::InvalidToken(value.kind)),
+            _ => return Err(LoxError::InvalidToken(0, value.kind)), // calculate line count
         })
     }
 }
@@ -63,7 +66,7 @@ impl TryFrom<Token<'_>> for UnaryOperator {
         Ok(match value.kind {
             TokenKind::Minus => UnaryOperator::Minus,
             TokenKind::Bang => UnaryOperator::Not,
-            _ => return Err(LoxError::InvalidToken(value.kind)),
+            _ => return Err(LoxError::InvalidToken(0, value.kind)), // calculate line count
         })
     }
 }
@@ -122,7 +125,7 @@ impl TryFrom<Token<'_>> for BinaryOperator {
             TokenKind::LessEqual => BinaryOperator::LessEqual,
             TokenKind::And => BinaryOperator::And,
             TokenKind::Or => BinaryOperator::Or,
-            _ => return Err(LoxError::InvalidToken(value.kind)),
+            _ => return Err(LoxError::InvalidToken(0, value.kind)), // calculate line count
         })
     }
 }
@@ -156,7 +159,7 @@ impl<'de> std::fmt::Display for Expression<'de> {
 }
 
 pub struct Parser<'de> {
-    //whole: &'de str,
+    whole: &'de str,
     lexer: Peekable<Lexer<'de>>,
 }
 
@@ -164,7 +167,7 @@ impl<'de> Parser<'de> {
     pub fn new(input: &'de str) -> Self {
         let lexer = Lexer::new(input).peekable();
         Parser {
-            //whole: input,
+            whole: input,
             lexer,
         }
     }
@@ -200,7 +203,8 @@ impl<'de> Parser<'de> {
         if token.kind == kind {
             Ok(token)
         } else {
-            Err(LoxError::UnexpectedToken(kind, token.kind))
+            let line_count = self.whole[..token.offset].lines().count();
+            Err(LoxError::UnexpectedToken(line_count, kind, token.kind))
         }
     }
 
@@ -287,6 +291,7 @@ impl<'de> Parser<'de> {
             return Ok(Expression::Grouping(Box::new(expression)));
         }
 
-        Err(LoxError::UnexpectedToken(TokenKind::LeftParen, token.kind))
+        let line_count = self.whole[..token.offset].lines().count();
+        Err(LoxError::UnexpectedToken(line_count, TokenKind::LeftParen, token.kind))
     }
 }

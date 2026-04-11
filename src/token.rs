@@ -50,16 +50,6 @@ pub struct Token<'de> {
     pub kind: TokenKind,
 }
 
-// impl<'de> Default for Token<'de> {
-//     fn default() -> Self {
-//         Token {
-//             origin: "SENTINEL",
-//             offset: 0,
-//             kind: TokenKind::Nil
-//         }
-//     }
-// }
-
 impl fmt::Display for Token<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let origin = self.origin;

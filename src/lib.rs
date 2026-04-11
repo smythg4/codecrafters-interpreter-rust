@@ -21,10 +21,10 @@ pub enum LoxError {
     UnterminatedString(usize, String), // line number and str attempted to parse
     #[error("[line {0}] Error: Unexpected End of File.")]
     UnexpectedEof(usize), // line number
-    #[error("Parse Error: Unexpected Token: expected {0:?}, got {1:?}.")]
-    UnexpectedToken(TokenKind, TokenKind), // (expected, got)
-    #[error("Parse Error: Invalid Token for current operation: {0:?}.")]
-    InvalidToken(TokenKind),
+    #[error("[line {0}] Parse Error: Unexpected Token: expected {0:?}, got {1:?}.")]
+    UnexpectedToken(usize, TokenKind, TokenKind), // (line#, expected, got)
+    #[error("[line {0}] Parse Error: Invalid Token for current operation: {0:?}.")]
+    InvalidToken(usize, TokenKind), // (line#, tokentype)
 }
 
 pub fn lex_file(path: PathBuf) -> Result<()> {
