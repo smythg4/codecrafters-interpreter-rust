@@ -5,9 +5,13 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 mod lexer;
+mod parser;
 mod token;
 
-#[derive(Error, Debug)]
+pub use parser::Parser;
+use token::TokenKind;
+
+#[derive(Error, Debug, Clone)]
 pub enum LoxError {
     #[error("[line {0}] Error: Unexpected character: {1}")]
     UnexpectedCharacter(usize, char), // line number and character read
@@ -17,16 +21,20 @@ pub enum LoxError {
     UnterminatedString(usize, String), // line number and str attempted to parse
     #[error("[line {0}] Error: Unexpected End of File.")]
     UnexpectedEof(usize), // line number
+    #[error("Parse Error: Unexpected Token: expected {0:?}, got {1:?}.")]
+    UnexpectedToken(TokenKind, TokenKind), // (expected, got)
+    #[error("Parse Error: Invalid Token for current operation: {0:?}.")]
+    InvalidToken(TokenKind),
 }
 
-pub fn run_file(path: PathBuf) -> Result<()> {
+pub fn lex_file(path: PathBuf) -> Result<()> {
     let mut f = File::open(path)?;
     let mut source_code = String::new();
     let mut output = std::io::stdout();
-    
+
     f.read_to_string(&mut source_code)?;
 
-    run(&source_code, &mut output)?;
+    lex(&source_code, &mut output)?;
     Ok(())
 }
 
@@ -40,7 +48,7 @@ pub fn run_repl() -> Result<()> {
 
     for line in input.lines() {
         let line = line?;
-        run(&line, &mut output)?;
+        lex(&line, &mut output)?;
 
         write!(output, "\n>> ")?;
         output.flush()?;
@@ -49,17 +57,17 @@ pub fn run_repl() -> Result<()> {
     Ok(())
 }
 
-fn run<W: Write>(input: &str, output: &mut W) -> Result<()> {
-    let mut lexer = lexer::Lexer::new(input.into());
+fn lex<W: Write>(input: &str, output: &mut W) -> Result<()> {
+    let lexer = lexer::Lexer::new(input);
     let mut errors_detected = false;
-    
-    while let Some(result) = lexer.next() {
+
+    for result in lexer {
         match result {
             Ok(token) => writeln!(output, "{token}")?,
             Err(e) => {
                 eprintln!("{e}");
                 errors_detected = true;
-            },
+            }
         }
     }
     writeln!(output, "EOF  null")?;

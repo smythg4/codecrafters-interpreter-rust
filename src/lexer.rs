@@ -17,15 +17,6 @@ impl<'de> Lexer<'de> {
             peeked: None,
         }
     }
-
-    pub fn peek(&mut self) -> Option<&Result<Token<'de>, LoxError>> {
-        if self.peeked.is_some() {
-            return self.peeked.as_ref();
-        }
-
-        self.peeked = self.next();
-        self.peeked.as_ref()
-    }
 }
 
 impl<'de> Iterator for Lexer<'de> {
@@ -85,35 +76,35 @@ impl<'de> Iterator for Lexer<'de> {
                 c if c.is_ascii_whitespace() => continue,
                 c => {
                     let lines = self.whole[..self.byte_index].lines().count();
-                    return Some(Err(LoxError::UnexpectedCharacter(lines, c)))
+                    return Some(Err(LoxError::UnexpectedCharacter(lines, c)));
                 }
             };
 
             break match started {
-               Started::String => {
-                if let Some(end) = self.rest.find('"') {
-                    let literal = &c_onwards[..end+1+1];
-                    self.byte_index += end + 1;
-                    self.rest = &self.rest[end + 1 .. ];
-                    Some(Ok(Token {
-                        origin: literal,
-                        offset: c_at,
-                        kind: TokenKind::String,
-                    }))
-                } else {
-                    let lines = self.whole[..self.byte_index - c.len_utf8()].lines().count();
-                    let msg = &self.whole[self.byte_index - c.len_utf8()..self.whole.len()];
-                    let err = LoxError::UnterminatedString(lines, msg.into());
+                Started::String => {
+                    if let Some(end) = self.rest.find('"') {
+                        let literal = &c_onwards[..end + 1 + 1];
+                        self.byte_index += end + 1;
+                        self.rest = &self.rest[end + 1..];
+                        Some(Ok(Token {
+                            origin: literal,
+                            offset: c_at,
+                            kind: TokenKind::String,
+                        }))
+                    } else {
+                        let lines = self.whole[..self.byte_index - c.len_utf8()].lines().count();
+                        let msg = &self.whole[self.byte_index - c.len_utf8()..self.whole.len()];
+                        let err = LoxError::UnterminatedString(lines, msg.into());
                         // swallow the remainder of input as being a string
                         self.byte_index += self.rest.len();
                         self.rest = &self.rest[self.rest.len()..];
-                    return Some(Err(err));
+                        return Some(Err(err));
+                    }
                 }
-               },
-               Started::Slash => {
+                Started::Slash => {
                     if self.rest.starts_with('/') {
                         // this is a comment!
-                        let line_end = self.rest.find('\n').unwrap_or_else(|| self.rest.len());
+                        let line_end = self.rest.find('\n').unwrap_or(self.rest.len());
                         self.byte_index += line_end;
                         self.rest = &self.rest[line_end..];
                         continue;
@@ -124,11 +115,11 @@ impl<'de> Iterator for Lexer<'de> {
                             kind: TokenKind::Slash,
                         }))
                     }
-               },
-               Started::Ident => {
+                }
+                Started::Ident => {
                     let first_non_ident = c_onwards
                         .find(|c| !matches!(c, 'a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
-                        .unwrap_or_else(|| c_onwards.len());
+                        .unwrap_or(c_onwards.len());
                     let literal = &c_onwards[..first_non_ident];
                     let extra_bytes = literal.len() - c.len_utf8();
                     self.byte_index += extra_bytes;
@@ -159,22 +150,22 @@ impl<'de> Iterator for Lexer<'de> {
                         offset: c_at,
                         kind,
                     }));
-               },
+                }
                 Started::Number => {
                     let first_non_digit = c_onwards
                         .find(|c| !matches!(c, '.' | '0'..='9'))
-                        .unwrap_or_else(|| c_onwards.len());
+                        .unwrap_or(c_onwards.len());
 
                     let mut literal = &c_onwards[..first_non_digit];
                     let mut dotted = literal.splitn(3, '.');
                     match (dotted.next(), dotted.next(), dotted.next()) {
                         (Some(one), Some(two), Some(_)) => {
                             literal = &literal[..one.len() + 1 + two.len()];
-                        },
-                        (Some(one), Some(two), None) if two.is_empty() => {
+                        }
+                        (Some(one), Some(""), None) => {
                             literal = &literal[..one.len()];
-                        },
-                        _ => {}, // leave as is - no dots
+                        }
+                        _ => {} // leave as is - no dots
                     }
 
                     let extra_bytes = literal.len() - c.len_utf8();
@@ -194,13 +185,14 @@ impl<'de> Iterator for Lexer<'de> {
                         offset: c_at,
                         kind: TokenKind::Number(n),
                     }));
-                },
+                }
                 Started::IfEqualElse(yes, no) => {
-                    self.rest = self.rest.trim_start();
-                    let trimmed = c_onwards.len() - self.rest.len() - 1;
-                    self.byte_index += trimmed;
+                    //self.rest = self.rest.trim_start();
+                    //let trimmed = c_onwards.len() - self.rest.len() - 1;
+                    //self.byte_index += trimmed;
                     if self.rest.starts_with('=') {
-                        let span = &c_onwards[..c.len_utf8() + trimmed + 1];
+                        //let span = &c_onwards[..c.len_utf8() + trimmed + 1];
+                        let span = &c_onwards[..c.len_utf8() + 1];
                         self.rest = &self.rest[1..];
                         self.byte_index += 1;
                         Some(Ok(Token {
@@ -216,7 +208,7 @@ impl<'de> Iterator for Lexer<'de> {
                         }))
                     }
                 }
-            }
+            };
         }
     }
 }
