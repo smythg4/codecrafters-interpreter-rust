@@ -35,7 +35,7 @@ impl<'de> TryFrom<Token<'de>> for Literal<'de> {
             TokenKind::True => Literal::Boolean(true),
             TokenKind::False => Literal::Boolean(false),
             TokenKind::Number(n) => Literal::Number(n),
-            TokenKind::String => Literal::String(value.origin),
+            TokenKind::String => Literal::String(&value.origin[1..value.origin.len()-1]),
             TokenKind::Nil => Literal::Nil,
             _ => return Err(LoxError::InvalidToken(value.kind)),
         })
