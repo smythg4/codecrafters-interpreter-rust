@@ -51,16 +51,22 @@ fn main() -> Result<()> {
                 Ok(exp) => exp,
                 Err(e) => {
                     eprintln!("{e}");
-                    match e {
-                        LoxError::NumberOperandRequired | LoxError::TwoNumberOperandsRequired | LoxError::TwoNumberOrStringOperandsRequired => {
-                            std::process::exit(70);
-                        }
-                        _ => std::process::exit(65),
-                    }
+                    std::process::exit(65);
                 }
             };
-            let val = evaluate_expression(exp)?;
-            println!("{val}");
+            let val = evaluate_expression(exp);
+            match val {
+                Ok(val) => println!("{val}"),
+                Err(e) if matches!(e,LoxError::NumberOperandRequired | LoxError::TwoNumberOperandsRequired | LoxError::TwoNumberOrStringOperandsRequired) => {
+                    eprintln!("{e}");
+                    std::process::exit(70);
+                },
+                Err(e) => {
+                    eprintln!("{e}");
+                    std::process::exit(65)
+                },
+            }
+
         }
     };
 
