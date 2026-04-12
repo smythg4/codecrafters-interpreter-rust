@@ -21,7 +21,7 @@ impl<'de> std::fmt::Display for Literal<'de> {
                 } else {
                     write!(f, "{n}")
                 }
-            },
+            }
             Literal::String(s) => write!(f, "{s}"),
             Literal::Nil => write!(f, "nil"),
         }
@@ -38,7 +38,7 @@ impl<'de> TryFrom<Token<'de>> for Literal<'de> {
             TokenKind::String => {
                 //let msg = Token::unescape(value.origin); // Cow -> &str wasn't behaving
                 Literal::String(value.origin.trim_matches('"'))
-            },
+            }
             TokenKind::Nil => Literal::Nil,
             _ => return Err(LoxError::InvalidToken(0, value.kind)), // calculate line count
         })
@@ -60,7 +60,7 @@ impl std::fmt::Display for UnaryOperator {
     }
 }
 
-impl TryFrom<Token<'_>> for UnaryOperator {
+impl<'de> TryFrom<Token<'_>> for UnaryOperator {
     type Error = LoxError;
     fn try_from(value: Token<'_>) -> Result<Self, Self::Error> {
         Ok(match value.kind {
@@ -108,7 +108,7 @@ impl std::fmt::Display for BinaryOperator {
     }
 }
 
-impl TryFrom<Token<'_>> for BinaryOperator {
+impl<'de> TryFrom<Token<'_>> for BinaryOperator {
     type Error = LoxError;
     fn try_from(value: Token<'_>) -> Result<Self, Self::Error> {
         Ok(match value.kind {
@@ -150,10 +150,14 @@ impl<'de> std::fmt::Display for Expression<'de> {
         match self {
             Expression::Literal(lit) => write!(f, "{lit}"),
             Expression::Unary { operator, right } => write!(f, "({operator} {right})"),
-            Expression::Binary { left, operator, right } => {
+            Expression::Binary {
+                left,
+                operator,
+                right,
+            } => {
                 write!(f, "({operator} {left} {right})")
-            },
-            Expression::Grouping(exp) => write!(f,"(group {exp})"),
+            }
+            Expression::Grouping(exp) => write!(f, "(group {exp})"),
         }
     }
 }
@@ -292,6 +296,10 @@ impl<'de> Parser<'de> {
         }
 
         let line_count = self.whole[..token.offset].lines().count();
-        Err(LoxError::UnexpectedToken(line_count, TokenKind::LeftParen, token.kind))
+        Err(LoxError::UnexpectedToken(
+            line_count,
+            TokenKind::LeftParen,
+            token.kind,
+        ))
     }
 }

@@ -4,6 +4,7 @@ use std::{io::Read, path::PathBuf};
 
 use codecrafters_interpreter::Parser as LoxParser;
 use codecrafters_interpreter::lex_file;
+use codecrafters_interpreter::evaluate_expression;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -16,7 +17,7 @@ struct Args {
 enum Commands {
     Tokenize { filename: PathBuf },
     Parse { filename: PathBuf },
-    Run { filename: PathBuf },
+    Evaluate { filename: PathBuf },
 }
 
 fn main() -> Result<()> {
@@ -39,8 +40,21 @@ fn main() -> Result<()> {
                 }
             }
         }
-        Commands::Run { filename: _ } => {
-            unimplemented!();
+        Commands::Evaluate { filename } => {
+            let mut f = std::fs::File::open(filename)?;
+            let mut contents = String::new();
+            f.read_to_string(&mut contents)?;
+
+            let mut parser = LoxParser::new(&contents);
+            let exp = match parser.expression() {
+                Ok(exp) => exp,
+                Err(e) => {
+                    eprintln!("{e}");
+                    std::process::exit(65);
+                }
+            };
+            let val = evaluate_expression(exp)?;
+            println!("{}", val);
         }
     };
 

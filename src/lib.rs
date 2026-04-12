@@ -4,12 +4,14 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
 use thiserror::Error;
 
+mod evaluator;
 mod lexer;
 mod parser;
 mod token;
 
 pub use parser::Parser;
 use token::TokenKind;
+pub use evaluator::{evaluate_expression, Value};
 
 #[derive(Error, Debug, Clone)]
 pub enum LoxError {
@@ -21,10 +23,14 @@ pub enum LoxError {
     UnterminatedString(usize, String), // line number and str attempted to parse
     #[error("[line {0}] Error: Unexpected End of File.")]
     UnexpectedEof(usize), // line number
-    #[error("[line {0}] Parse Error: Unexpected Token: expected {0:?}, got {1:?}.")]
+    #[error("[line {0}] Parse Error: Unexpected Token: expected {1:?}, got {2:?}.")]
     UnexpectedToken(usize, TokenKind, TokenKind), // (line#, expected, got)
     #[error("[line {0}] Parse Error: Invalid Token for current operation: {0:?}.")]
     InvalidToken(usize, TokenKind), // (line#, tokentype)
+    #[error("Type Error: Invalid Type for current operation: expected: {0}, got {1:?}")]
+    InvalidType(String, Value),
+    #[error("Type Mismatch: {0:?} , {1:?}")]
+    TypeMismatch(Value, Value)
 }
 
 pub fn lex_file(path: PathBuf) -> Result<()> {
