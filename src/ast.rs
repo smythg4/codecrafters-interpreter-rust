@@ -10,7 +10,11 @@ pub enum Statement<'de> {
         initializer: Option<Expression<'de>>,
     },
     Block(Vec<Statement<'de>>),
-    If{condition: Expression<'de>, then_branch: Box<Statement<'de>>, else_branch: Option<Box<Statement<'de>>> },
+    If {
+        condition: Expression<'de>,
+        then_branch: Box<Statement<'de>>,
+        else_branch: Option<Box<Statement<'de>>>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -172,6 +176,11 @@ pub enum Expression<'de> {
         operator: BinaryOperator,
         right: Box<Expression<'de>>,
     },
+    Logical {
+        left: Box<Expression<'de>>,
+        operator: BinaryOperator,
+        right: Box<Expression<'de>>,
+    },
     Variable(usize, &'de str), // line, name
     Assign {
         line: usize,
@@ -187,6 +196,13 @@ impl<'de> std::fmt::Display for Expression<'de> {
             Expression::Literal(lit) => write!(f, "{lit}"),
             Expression::Unary { operator, right } => write!(f, "({operator} {right})"),
             Expression::Binary {
+                left,
+                operator,
+                right,
+            } => {
+                write!(f, "({operator} {left} {right})")
+            }
+            Expression::Logical {
                 left,
                 operator,
                 right,

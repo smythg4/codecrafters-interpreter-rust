@@ -1,6 +1,2 @@
-{
-    var bar = 11;
-    var world = 11;
-    {
-        print bar + world;
-}
+print "hi" or 2;
+print nil or "yes";

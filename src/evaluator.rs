@@ -123,14 +123,18 @@ impl Intepreter {
                 let env = self.environment.take();
                 let parent_env = env.parent_env().unwrap();
                 self.environment = parent_env;
-            },
-            Statement::If { condition, then_branch, else_branch } => {
-                if Self::is_truthy(self.evaluate_expression(condition)?) {
+            }
+            Statement::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                if Self::is_truthy(&self.evaluate_expression(condition)?) {
                     self.execute_statement(*then_branch)?;
                 } else if else_branch.is_some() {
-                    self.execute_statement(*else_branch.unwrap() )?;
+                    self.execute_statement(*else_branch.unwrap())?;
                 }
-            },
+            }
         }
         Ok(())
     }
@@ -150,6 +154,11 @@ impl Intepreter {
                 operator,
                 right,
             } => self.eval_binary(operator, *left, *right),
+            Expression::Logical {
+                left,
+                operator,
+                right,
+            } => self.eval_logical(operator, *left, *right),
             Expression::Grouping(expr) => self.evaluate_expression(*expr),
             Expression::Assign { line, name, value } => {
                 let result = self.evaluate_expression(*value)?;
@@ -179,14 +188,14 @@ impl Intepreter {
         match (operator, right) {
             (UnaryOperator::Minus(_), Value::Number(n)) => Ok(Value::Number(-n)),
             (UnaryOperator::Minus(line), _) => Err(LoxError::NumberOperandRequired(line)),
-            (UnaryOperator::Not(_), val) => Ok(Value::Boolean(!Self::is_truthy(val))),
+            (UnaryOperator::Not(_), val) => Ok(Value::Boolean(!Self::is_truthy(&val))),
         }
     }
 
-    fn is_truthy(value: Value) -> bool {
+    fn is_truthy(value: &Value) -> bool {
         match value {
             Value::Nil => false,
-            Value::Boolean(b) => b,
+            Value::Boolean(b) => *b,
             _ => true,
         }
     }
@@ -247,6 +256,24 @@ impl Intepreter {
             }
             (op, _, _) => Err(LoxError::TwoNumberOperandsRequired(op.get_line())),
         }
+    }
+
+    fn eval_logical(
+        &mut self,
+        operator: BinaryOperator,
+        left: Expression<'_>,
+        right: Expression<'_>,
+    ) -> Result<Value, LoxError> {
+        let left = self.evaluate_expression(left)?;
+        if matches!(operator, BinaryOperator::Or(_)) {
+            if Self::is_truthy(&left) {
+                return Ok(left);
+            }
+        } else if !Self::is_truthy(&left) {
+            return Ok(left.clone());
+        }
+
+        self.evaluate_expression(right)
     }
 
     fn is_equal(left: Value, right: Value) -> Result<bool, LoxError> {

@@ -148,9 +148,18 @@ impl<'de> Parser<'de> {
 
         match self.lexer.peek() {
             Some(Ok(t)) => match t.kind {
-                TokenKind::LeftBrace => { self.advance()?; Ok(Statement::Block(self.block()?)) },
-                TokenKind::If => { self.advance()?; self.if_statement() },
-                TokenKind::Print => { self.advance()?; self.print_statement() },
+                TokenKind::LeftBrace => {
+                    self.advance()?;
+                    Ok(Statement::Block(self.block()?))
+                }
+                TokenKind::If => {
+                    self.advance()?;
+                    self.if_statement()
+                }
+                TokenKind::Print => {
+                    self.advance()?;
+                    self.print_statement()
+                }
                 _ => self.expression_statement(),
             },
             Some(Err(e)) => return Err(e.clone()),
@@ -168,8 +177,11 @@ impl<'de> Parser<'de> {
         if self.match_any(&[TokenKind::Else])?.is_some() {
             else_branch = Some(Box::new(self.statement()?));
         }
-        Ok(Statement::If{condition, then_branch, else_branch })
-        
+        Ok(Statement::If {
+            condition,
+            then_branch,
+            else_branch,
+        })
     }
 
     fn print_statement(&mut self) -> Result<Statement<'de>, LoxError> {
@@ -189,7 +201,7 @@ impl<'de> Parser<'de> {
     }
 
     fn assignment(&mut self) -> Result<Expression<'de>, LoxError> {
-        let expr = self.equality()?;
+        let expr = self.or()?;
 
         if let Some(op) = self.match_any(&[TokenKind::Equal])? {
             let value = Box::new(self.assignment()?);
@@ -204,6 +216,38 @@ impl<'de> Parser<'de> {
                     return Err(LoxError::InvalidAssignment(op.line));
                 }
             }
+        }
+
+        Ok(expr)
+    }
+
+    fn or(&mut self) -> Result<Expression<'de>, LoxError> {
+        let mut expr = self.and()?;
+
+        while let Some(op_token) = self.match_any(&[TokenKind::Or])? {
+            let right = self.and()?;
+            let operator = BinaryOperator::try_from(op_token)?;
+            expr = Expression::Logical {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            };
+        }
+
+        Ok(expr)
+    }
+
+    fn and(&mut self) -> Result<Expression<'de>, LoxError> {
+        let mut expr = self.equality()?;
+
+        while let Some(op_token) = self.match_any(&[TokenKind::And])? {
+            let right = self.equality()?;
+            let operator = BinaryOperator::try_from(op_token)?;
+            expr = Expression::Logical {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            };
         }
 
         Ok(expr)
