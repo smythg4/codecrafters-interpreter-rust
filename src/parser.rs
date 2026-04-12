@@ -75,7 +75,7 @@ impl<'de> Parser<'de> {
     }
 
     fn statement(&mut self) -> Result<Statement<'de>, LoxError> {
-        if let Some(op_token) = self.match_any(&[TokenKind::Print])? {
+        if self.match_any(&[TokenKind::Print])?.is_some() {
             return self.print_statement();
         }
         self.expression_statement()

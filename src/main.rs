@@ -49,6 +49,12 @@ fn main() -> Result<()> {
 
             let mut parser = LoxParser::new(&contents);
             let (statements, errors) = parser.parse_program();
+              if !errors.is_empty() {
+      for e in &errors {
+          eprintln!("{e}");
+      }
+      std::process::exit(65);
+  }
             let mut i = Intepreter::new();
             let val = i.interpret(statements);
             match val {
@@ -78,6 +84,12 @@ fn main() -> Result<()> {
 
             let mut parser = LoxParser::new(&contents);
             let (statements, errors) = parser.parse_program();
+              if !errors.is_empty() {
+      for e in &errors {
+          eprintln!("{e}");
+      }
+      std::process::exit(65);
+  }
             let mut i = Intepreter::new();
             let val = i.interpret(statements);
             match val {
