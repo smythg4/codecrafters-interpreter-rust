@@ -54,7 +54,7 @@ fn main() -> Result<()> {
                 }
             };
             let val = evaluate_expression(exp)?;
-            println!("{}", val);
+            println!("{val}");
         }
     };
 
