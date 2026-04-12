@@ -144,7 +144,26 @@ impl<'de> Parser<'de> {
 
     // Recursive descent methods.
     pub fn expression(&mut self) -> Result<Expression<'de>, LoxError> {
-        self.equality()
+        self.assignment()
+    }
+
+    fn assignment(&mut self) -> Result<Expression<'de>, LoxError> {
+        let expr = self.equality()?;
+
+        if let Some(op) = self.match_any(&[TokenKind::Equal])? {
+            let value = Box::new(self.assignment()?);
+
+            match expr {
+                Expression::Variable(line, name) => {
+                    return Ok(Expression::Assign { line, name, value });
+                }
+                _ => {
+                    return Err(LoxError::InvalidAssignment(op.line));
+                }
+            }
+        }
+
+        Ok(expr)
     }
 
     fn equality(&mut self) -> Result<Expression<'de>, LoxError> {

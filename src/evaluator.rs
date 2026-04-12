@@ -56,15 +56,19 @@ impl Intepreter {
 
     fn execute_statement(&mut self, stmt: Statement<'_>) -> Result<(), LoxError> {
         match stmt {
-            Statement::ExpressionStatement(exp) => { self.evaluate_expression(exp)?; },
-            Statement::Print(exp) => { self.evaluate_print(exp)?; },
+            Statement::ExpressionStatement(exp) => {
+                self.evaluate_expression(exp)?;
+            }
+            Statement::Print(exp) => {
+                self.evaluate_print(exp)?;
+            }
             Statement::Var { name, initializer } => {
                 let value = match initializer {
                     None => Value::Nil,
-                    Some(v) => self.evaluate_expression(v)?
+                    Some(v) => self.evaluate_expression(v)?,
                 };
                 self.environment.insert(name.into(), value);
-            },
+            }
         }
         Ok(())
     }
@@ -86,19 +90,17 @@ impl Intepreter {
             } => self.eval_binary(operator, *left, *right),
             Expression::Grouping(expr) => self.evaluate_expression(*expr),
             Expression::Assign { line, name, value } => {
-                if self.environment.get(name).is_none() {
+                if !self.environment.contains_key(name) {
                     return Err(LoxError::UndefinedVariable(line, name.into()));
                 }
                 let result = self.evaluate_expression(*value)?;
                 self.environment.insert(name.into(), result.clone());
                 Ok(result)
-            },
-            Expression::Variable(line, name) => {
-                match self.environment.get(name) {
-                    Some(value) => Ok(value.clone()),
-                    None => Err(LoxError::UndefinedVariable(line, name.into())),
-                }
             }
+            Expression::Variable(line, name) => match self.environment.get(name) {
+                Some(value) => Ok(value.clone()),
+                None => Err(LoxError::UndefinedVariable(line, name.into())),
+            },
         }
     }
 

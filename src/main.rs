@@ -66,7 +66,7 @@ fn main() -> Result<()> {
                             | LoxError::TwoNumberOperandsRequired(_)
                             | LoxError::TwoNumberOrStringOperandsRequired(_)
                             | LoxError::TwoBooleanOperandsRequired(_)
-                            | LoxError::UndefinedVariable(_,_)
+                            | LoxError::UndefinedVariable(_, _)
                     ) =>
                 {
                     eprintln!("{e}");
@@ -102,7 +102,7 @@ fn main() -> Result<()> {
                             | LoxError::TwoNumberOperandsRequired(_)
                             | LoxError::TwoNumberOrStringOperandsRequired(_)
                             | LoxError::TwoBooleanOperandsRequired(_)
-                            | LoxError::UndefinedVariable(_,_)
+                            | LoxError::UndefinedVariable(_, _)
                     ) =>
                 {
                     eprintln!("{e}");
