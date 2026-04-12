@@ -60,16 +60,67 @@ impl<'de> Parser<'de> {
             if self.lexer.peek().is_none() {
                 break;
             }
-            let maybe_stmt = self.statement();
-            match maybe_stmt {
+            let maybe_dec = self.declaration();
+            match maybe_dec {
                 Ok(stmt) => stmts.push(stmt),
                 Err(e) => {
                     errs.push(e);
+                    self.synchronize(); // recover from the errors to continue parsing
                 }
             }
         }
 
         (stmts, errs)
+    }
+
+    fn synchronize(&mut self) {
+        loop {
+            let kind = match self.lexer.peek() {
+                None => return,
+                Some(Ok(t)) => t.kind,
+                Some(Err(_)) => {
+                    self.lexer.next();
+                    continue;
+                }
+            };
+
+            match kind {
+                TokenKind::Semicolon => {
+                    self.lexer.next(); // consume the ';' then stop
+                    return;
+                }
+                TokenKind::Class
+                | TokenKind::Fun
+                | TokenKind::Var
+                | TokenKind::For
+                | TokenKind::If
+                | TokenKind::While
+                | TokenKind::Print
+                | TokenKind::Return => return, // don't consume — let the next parse own it
+                _ => {
+                    self.lexer.next();
+                }
+            }
+        }
+    }
+
+    fn declaration(&mut self) -> Result<Statement<'de>, LoxError> {
+        if self.match_any(&[TokenKind::Var])?.is_some() {
+            return self.var_declaration();
+        }
+        self.statement()
+    }
+
+    fn var_declaration(&mut self) -> Result<Statement<'de>, LoxError> {
+        let name = self.expect(TokenKind::Ident)?.origin;
+        let mut initializer = None;
+        if self.match_any(&[TokenKind::Equal])?.is_some() {
+            // if we have `var x = 5;` we evaluate the right hand side.
+            // if we have `var x;` we toss a `None` into the `initializer` section
+            initializer = Some(self.expression()?);
+        }
+        self.expect(TokenKind::Semicolon)?;
+        Ok(Statement::Var { name, initializer })
     }
 
     fn statement(&mut self) -> Result<Statement<'de>, LoxError> {
@@ -166,6 +217,10 @@ impl<'de> Parser<'de> {
 
         if let Ok(literal) = Literal::try_from(token) {
             return Ok(Expression::Literal(literal));
+        }
+
+        if token.kind == TokenKind::Ident {
+            return Ok(Expression::Variable(token.line, token.origin));
         }
 
         if token.kind == TokenKind::LeftParen {

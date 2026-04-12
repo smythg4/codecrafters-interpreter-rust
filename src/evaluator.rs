@@ -1,5 +1,8 @@
 use crate::LoxError;
 use crate::ast::{BinaryOperator, Expression, Literal, Statement, UnaryOperator};
+use std::collections::HashMap;
+
+pub type Environment = HashMap<String, Value>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
@@ -34,12 +37,14 @@ impl From<Literal<'_>> for Value {
 }
 
 pub struct Intepreter {
-    // hold states only
+    environment: Environment,
 }
 
 impl Intepreter {
     pub fn new() -> Self {
-        Intepreter {}
+        Intepreter {
+            environment: Environment::new(),
+        }
     }
 
     pub fn interpret(&mut self, statements: Vec<Statement<'_>>) -> Result<(), LoxError> {
@@ -49,11 +54,19 @@ impl Intepreter {
         Ok(())
     }
 
-    fn execute_statement(&mut self, stmt: Statement<'_>) -> Result<Value, LoxError> {
+    fn execute_statement(&mut self, stmt: Statement<'_>) -> Result<(), LoxError> {
         match stmt {
-            Statement::ExpressionStatement(exp) => self.evaluate_expression(exp),
-            Statement::Print(exp) => self.evaluate_print(exp),
+            Statement::ExpressionStatement(exp) => { self.evaluate_expression(exp)?; },
+            Statement::Print(exp) => { self.evaluate_print(exp)?; },
+            Statement::Var { name, initializer } => {
+                let value = match initializer {
+                    None => Value::Nil,
+                    Some(v) => self.evaluate_expression(v)?
+                };
+                self.environment.insert(name.into(), value);
+            },
         }
+        Ok(())
     }
 
     fn evaluate_print(&mut self, exp: Expression) -> Result<Value, LoxError> {
@@ -62,7 +75,7 @@ impl Intepreter {
         Ok(value)
     }
 
-    pub fn evaluate_expression(&self, expr: Expression<'_>) -> Result<Value, LoxError> {
+    pub fn evaluate_expression(&mut self, expr: Expression<'_>) -> Result<Value, LoxError> {
         match expr {
             Expression::Literal(l) => Ok(Value::from(l)),
             Expression::Unary { operator, right } => self.eval_unary(operator, *right),
@@ -72,11 +85,25 @@ impl Intepreter {
                 right,
             } => self.eval_binary(operator, *left, *right),
             Expression::Grouping(expr) => self.evaluate_expression(*expr),
+            Expression::Assign { line, name, value } => {
+                if self.environment.get(name).is_none() {
+                    return Err(LoxError::UndefinedVariable(line, name.into()));
+                }
+                let result = self.evaluate_expression(*value)?;
+                self.environment.insert(name.into(), result.clone());
+                Ok(result)
+            },
+            Expression::Variable(line, name) => {
+                match self.environment.get(name) {
+                    Some(value) => Ok(value.clone()),
+                    None => Err(LoxError::UndefinedVariable(line, name.into())),
+                }
+            }
         }
     }
 
     fn eval_unary(
-        &self,
+        &mut self,
         operator: UnaryOperator,
         right: Expression<'_>,
     ) -> Result<Value, LoxError> {
@@ -97,7 +124,7 @@ impl Intepreter {
     }
 
     fn eval_binary(
-        &self,
+        &mut self,
         operator: BinaryOperator,
         left: Expression<'_>,
         right: Expression<'_>,

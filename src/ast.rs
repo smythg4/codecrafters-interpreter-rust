@@ -5,6 +5,10 @@ use crate::token::{Token, TokenKind};
 pub enum Statement<'de> {
     ExpressionStatement(Expression<'de>),
     Print(Expression<'de>),
+    Var {
+        name: &'de str,
+        initializer: Option<Expression<'de>>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -166,6 +170,12 @@ pub enum Expression<'de> {
         operator: BinaryOperator,
         right: Box<Expression<'de>>,
     },
+    Variable(usize, &'de str), // line, name
+    Assign {
+        line: usize,
+        name: &'de str,
+        value: Box<Expression<'de>>,
+    },
     Grouping(Box<Expression<'de>>),
 }
 
@@ -180,6 +190,12 @@ impl<'de> std::fmt::Display for Expression<'de> {
                 right,
             } => {
                 write!(f, "({operator} {left} {right})")
+            }
+            Expression::Assign { line, name, value } => {
+                todo!();
+            }
+            Expression::Variable(line, name) => {
+                todo!();
             }
             Expression::Grouping(exp) => write!(f, "(group {exp})"),
         }

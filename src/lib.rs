@@ -46,6 +46,8 @@ pub enum LoxError {
     UnaryInvalidToken(usize, TokenKind),
     #[error("[line {0}] Invalid Token for Literal Expression: {1:?}.")]
     LiteralInvalidToken(usize, TokenKind),
+    #[error("[line {0}] Undefined variable '{1}'.")]
+    UndefinedVariable(usize, String), // line, name
 }
 
 pub fn lex_file(path: PathBuf) -> Result<()> {
