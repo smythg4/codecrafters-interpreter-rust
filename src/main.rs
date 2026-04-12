@@ -72,8 +72,33 @@ fn main() -> Result<()> {
             }
         }
         Commands::Run { filename } => {
-            println!("Filename: {}", filename.display());
-            todo!()
+            let mut f = std::fs::File::open(filename)?;
+            let mut contents = String::new();
+            f.read_to_string(&mut contents)?;
+
+            let mut parser = LoxParser::new(&contents);
+            let (statements, errors) = parser.parse_program();
+            let mut i = Intepreter::new();
+            let val = i.interpret(statements);
+            match val {
+                Ok(_) => return Ok(()),
+                Err(e)
+                    if matches!(
+                        e,
+                        LoxError::NumberOperandRequired(_)
+                            | LoxError::TwoNumberOperandsRequired(_)
+                            | LoxError::TwoNumberOrStringOperandsRequired(_)
+                            | LoxError::TwoBooleanOperandsRequired(_)
+                    ) =>
+                {
+                    eprintln!("{e}");
+                    std::process::exit(70);
+                }
+                Err(e) => {
+                    eprintln!("{e}");
+                    std::process::exit(65)
+                }
+            }
         }
     };
 
