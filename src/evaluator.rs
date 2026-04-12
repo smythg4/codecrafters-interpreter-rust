@@ -16,11 +16,7 @@ impl std::fmt::Display for Value {
             Value::Nil => write!(f, "nil"),
             Value::String(s) => write!(f, "{s}"),
             Value::Number(n) => {
-                if n.trunc() == *n {
-                    write!(f,"{n}.0")
-                } else {
-                    write!(f,"{n}")
-                }
+                write!(f,"{n}")
             }
         }
     }
