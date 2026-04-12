@@ -85,6 +85,7 @@ fn is_equal(left: Value, right: Value) -> Result<bool, LoxError> {
         (Value::Number(x), Value::Number(y)) => Ok(x==y),
         (Value::String(x), Value::String(y)) => Ok(x==y),
         (Value::Boolean(x), Value::Boolean(y)) => Ok(x==y),
-        (left, right)=> Err(LoxError::TypeMismatch(left, right)),
+        (left, right)=> Ok(left == right),
+        //(left, right)=> Err(LoxError::TypeMismatch(left, right)),
     }
 }
