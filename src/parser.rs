@@ -1,6 +1,6 @@
 use crate::LoxError;
+use crate::ast::{BinaryOperator, Expression, Literal, Statement, UnaryOperator};
 use crate::lexer::Lexer;
-use crate::ast::{Statement, Expression, BinaryOperator, UnaryOperator, Literal};
 use crate::token::{Token, TokenKind};
 use std::iter::Peekable;
 
@@ -54,8 +54,6 @@ impl<'de> Parser<'de> {
     }
 
     pub fn parse_program(&mut self) -> (Vec<Statement<'de>>, Vec<LoxError>) {
-
-        
         let mut stmts = Vec::new();
         let mut errs = Vec::new();
         loop {

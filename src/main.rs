@@ -2,9 +2,9 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use std::{io::Read, path::PathBuf};
 
+use codecrafters_interpreter::Intepreter;
 use codecrafters_interpreter::LoxError;
 use codecrafters_interpreter::Parser as LoxParser;
-use codecrafters_interpreter::Intepreter;
 use codecrafters_interpreter::lex_file;
 
 #[derive(Parser, Debug)]
@@ -48,17 +48,17 @@ fn main() -> Result<()> {
             f.read_to_string(&mut contents)?;
 
             let mut parser = LoxParser::new(&contents);
-            let (statements, errors) = parser.parse_program();
-              if !errors.is_empty() {
-      for e in &errors {
-          eprintln!("{e}");
-      }
-      std::process::exit(65);
-  }
+            let exp = match parser.expression() {
+                Ok(exp) => exp,
+                Err(e) => {
+                    eprintln!("{e}");
+                    std::process::exit(65);
+                }
+            };
+
             let mut i = Intepreter::new();
-            let val = i.interpret(statements);
-            match val {
-                Ok(_) => return Ok(()),
+            match i.evaluate_expression(exp) {
+                Ok(val) => println!("{val}"),
                 Err(e)
                     if matches!(
                         e,
@@ -73,7 +73,7 @@ fn main() -> Result<()> {
                 }
                 Err(e) => {
                     eprintln!("{e}");
-                    std::process::exit(65)
+                    std::process::exit(65);
                 }
             }
         }
@@ -84,12 +84,12 @@ fn main() -> Result<()> {
 
             let mut parser = LoxParser::new(&contents);
             let (statements, errors) = parser.parse_program();
-              if !errors.is_empty() {
-      for e in &errors {
-          eprintln!("{e}");
-      }
-      std::process::exit(65);
-  }
+            if !errors.is_empty() {
+                for e in &errors {
+                    eprintln!("{e}");
+                }
+                std::process::exit(65);
+            }
             let mut i = Intepreter::new();
             let val = i.interpret(statements);
             match val {
