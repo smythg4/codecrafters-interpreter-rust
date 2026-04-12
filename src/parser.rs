@@ -138,15 +138,40 @@ impl<'de> Parser<'de> {
     }
 
     fn statement(&mut self) -> Result<Statement<'de>, LoxError> {
-        if self.match_any(&[TokenKind::LeftBrace])?.is_some() {
-            return Ok(Statement::Block(self.block()?));
-        }
+        // if self.match_any(&[TokenKind::LeftBrace])?.is_some() {
+        //     return Ok(Statement::Block(self.block()?));
+        // }
 
-        if self.match_any(&[TokenKind::Print])?.is_some() {
-            return self.print_statement();
+        // if self.match_any(&[TokenKind::Print])?.is_some() {
+        //     return self.print_statement();
+        // }
+
+        match self.lexer.peek() {
+            Some(Ok(t)) => match t.kind {
+                TokenKind::LeftBrace => return Ok(Statement::Block(self.block()?)),
+                TokenKind::If => return self.if_statement(),
+                TokenKind::Print => return self.print_statement(),
+                _ => {},
+            },
+            Some(Err(e)) => return Err(e.clone()),
+            None => return Err(LoxError::UnexpectedEof(self.whole.lines().count())),
         }
 
         self.expression_statement()
+    }
+
+    fn if_statement(&mut self) -> Result<Statement<'de>, LoxError> {
+        self.expect(TokenKind::LeftParen)?; // consume the '('
+        let condition = self.expression()?;
+        self.expect(TokenKind::RightParen)?; // consume the ')'
+
+        let then_branch = Box::new(self.statement()?);
+        let mut else_branch = None;
+        if self.match_any(&[TokenKind::Else])?.is_some() {
+            else_branch = Some(Box::new(self.statement()?));
+        }
+        Ok(Statement::If{condition, then_branch, else_branch })
+        
     }
 
     fn print_statement(&mut self) -> Result<Statement<'de>, LoxError> {

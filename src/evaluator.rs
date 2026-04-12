@@ -123,7 +123,14 @@ impl Intepreter {
                 let env = self.environment.take();
                 let parent_env = env.parent_env().unwrap();
                 self.environment = parent_env;
-            }
+            },
+            Statement::If { condition, then_branch, else_branch } => {
+                if Self::is_truthy(self.evaluate_expression(condition)?) {
+                    self.execute_statement(*then_branch)?;
+                } else if else_branch.is_some() {
+                    self.execute_statement(*else_branch.unwrap() )?;
+                }
+            },
         }
         Ok(())
     }

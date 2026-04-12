@@ -10,6 +10,7 @@ pub enum Statement<'de> {
         initializer: Option<Expression<'de>>,
     },
     Block(Vec<Statement<'de>>),
+    If{condition: Expression<'de>, then_branch: Box<Statement<'de>>, else_branch: Option<Box<Statement<'de>>> },
 }
 
 #[derive(Debug, Clone)]
