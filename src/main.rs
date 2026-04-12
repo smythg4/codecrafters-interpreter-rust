@@ -4,7 +4,7 @@ use std::{io::Read, path::PathBuf};
 
 use codecrafters_interpreter::LoxError;
 use codecrafters_interpreter::Parser as LoxParser;
-use codecrafters_interpreter::evaluate_expression;
+use codecrafters_interpreter::Intepreter;
 use codecrafters_interpreter::lex_file;
 
 #[derive(Parser, Debug)]
@@ -48,16 +48,11 @@ fn main() -> Result<()> {
             f.read_to_string(&mut contents)?;
 
             let mut parser = LoxParser::new(&contents);
-            let exp = match parser.expression() {
-                Ok(exp) => exp,
-                Err(e) => {
-                    eprintln!("{e}");
-                    std::process::exit(65);
-                }
-            };
-            let val = evaluate_expression(exp);
+            let (statements, errors) = parser.parse_program();
+            let mut i = Intepreter::new();
+            let val = i.interpret(statements);
             match val {
-                Ok(val) => println!("{val}"),
+                Ok(_) => return Ok(()),
                 Err(e)
                     if matches!(
                         e,

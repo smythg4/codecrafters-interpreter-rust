@@ -22,7 +22,6 @@ impl<'de> Lexer<'de> {
 impl<'de> Iterator for Lexer<'de> {
     type Item = Result<Token<'de>, LoxError>;
 
-    /// Once the iterator return `Err`, it will only return `None`
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(next) = self.peeked.take() {
             return Some(next);

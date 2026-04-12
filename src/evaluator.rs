@@ -1,5 +1,5 @@
 use crate::LoxError;
-use crate::parser::{BinaryOperator, Expression, Literal, UnaryOperator};
+use crate::ast::{BinaryOperator, Expression, Literal, Statement, UnaryOperator};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
@@ -33,25 +33,54 @@ impl From<Literal<'_>> for Value {
     }
 }
 
-pub fn evaluate_expression(expr: Expression<'_>) -> Result<Value, LoxError> {
+pub struct Intepreter {
+    // hold states only
+}
+
+impl Intepreter {
+    pub fn new() -> Self {
+        Intepreter {  }
+    }
+
+    pub fn interpret(&mut self, statements: Vec<Statement<'_>>) -> Result<(), LoxError> {
+        for statement in statements {
+            self.execute_statement(statement)?;
+        }
+        Ok(())
+    }
+
+    fn execute_statement(&mut self, stmt: Statement<'_>) -> Result<Value, LoxError> {
+        match stmt {
+            Statement::ExpressionStatement(exp) => self.evaluate_expression(exp),
+            Statement::Print(exp) => self.evaluate_print(exp),
+        }
+    }
+
+    fn evaluate_print(&mut self, exp: Expression) -> Result<Value, LoxError> {
+        let value = self.evaluate_expression(exp)?;
+        println!("{value}");
+        Ok(value)
+    }
+
+fn evaluate_expression(&self, expr: Expression<'_>) -> Result<Value, LoxError> {
     match expr {
         Expression::Literal(l) => Ok(Value::from(l)),
-        Expression::Unary { operator, right } => eval_unary(operator, *right),
+        Expression::Unary { operator, right } => self.eval_unary(operator, *right),
         Expression::Binary {
             left,
             operator,
             right,
-        } => eval_binary(operator, *left, *right),
-        Expression::Grouping(expr) => evaluate_expression(*expr),
+        } => self.eval_binary(operator, *left, *right),
+        Expression::Grouping(expr) => self.evaluate_expression(*expr),
     }
 }
 
-fn eval_unary(operator: UnaryOperator, right: Expression<'_>) -> Result<Value, LoxError> {
-    let right = evaluate_expression(right)?;
+fn eval_unary(&self, operator: UnaryOperator, right: Expression<'_>) -> Result<Value, LoxError> {
+    let right = self.evaluate_expression(right)?;
     match (operator, right) {
         (UnaryOperator::Minus(_), Value::Number(n)) => Ok(Value::Number(-n)),
         (UnaryOperator::Minus(line), _) => Err(LoxError::NumberOperandRequired(line)),
-        (UnaryOperator::Not(_), val) => Ok(Value::Boolean(!is_truthy(val))),
+        (UnaryOperator::Not(_), val) => Ok(Value::Boolean(!Self::is_truthy(val))),
     }
 }
 
@@ -64,12 +93,13 @@ fn is_truthy(value: Value) -> bool {
 }
 
 fn eval_binary(
+    &self,
     operator: BinaryOperator,
     left: Expression<'_>,
     right: Expression<'_>,
 ) -> Result<Value, LoxError> {
-    let left = evaluate_expression(left)?;
-    let right = evaluate_expression(right)?;
+    let left = self.evaluate_expression(left)?;
+    let right = self.evaluate_expression(right)?;
     match (operator, left, right) {
         (BinaryOperator::Add(_), Value::Number(x), Value::Number(y)) => Ok(Value::Number(x + y)),
         (BinaryOperator::Add(_), Value::String(str1), Value::String(str2)) => {
@@ -89,8 +119,8 @@ fn eval_binary(
         (BinaryOperator::LessEqual(_), Value::Number(x), Value::Number(y)) => {
             Ok(Value::Boolean(x <= y))
         }
-        (BinaryOperator::Equal(_), left, right) => Ok(Value::Boolean(is_equal(left, right)?)),
-        (BinaryOperator::NotEqual(_), left, right) => Ok(Value::Boolean(!is_equal(left, right)?)),
+        (BinaryOperator::Equal(_), left, right) => Ok(Value::Boolean(Self::is_equal(left, right)?)),
+        (BinaryOperator::NotEqual(_), left, right) => Ok(Value::Boolean(!Self::is_equal(left, right)?)),
         (BinaryOperator::And(_), Value::Boolean(b1), Value::Boolean(b2)) => Ok(Value::Boolean(b1 && b2)),
         (BinaryOperator::Or(_), Value::Boolean(b1), Value::Boolean(b2)) => Ok(Value::Boolean(b1 || b2)),
         (BinaryOperator::And(line) | BinaryOperator::Or(line), _, _) => Err(LoxError::TwoBooleanOperandsRequired(line)),
@@ -110,3 +140,5 @@ fn is_equal(left: Value, right: Value) -> Result<bool, LoxError> {
         //(left, right)=> Err(LoxError::TypeMismatch(left, right)),
     }
 }
+}
+

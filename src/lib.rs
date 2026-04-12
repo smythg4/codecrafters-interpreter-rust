@@ -5,11 +5,12 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 mod evaluator;
+mod ast;
 mod lexer;
 mod parser;
 mod token;
 
-pub use evaluator::{Value, evaluate_expression};
+pub use evaluator::{Value, Intepreter};
 pub use parser::Parser;
 use token::TokenKind;
 
