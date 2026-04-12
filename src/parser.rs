@@ -148,20 +148,17 @@ impl<'de> Parser<'de> {
 
         match self.lexer.peek() {
             Some(Ok(t)) => match t.kind {
-                TokenKind::LeftBrace => return Ok(Statement::Block(self.block()?)),
-                TokenKind::If => return self.if_statement(),
-                TokenKind::Print => return self.print_statement(),
-                _ => {},
+                TokenKind::LeftBrace => { self.advance()?; Ok(Statement::Block(self.block()?)) },
+                TokenKind::If => { self.advance()?; self.if_statement() },
+                TokenKind::Print => { self.advance()?; self.print_statement() },
+                _ => self.expression_statement(),
             },
             Some(Err(e)) => return Err(e.clone()),
             None => return Err(LoxError::UnexpectedEof(self.whole.lines().count())),
         }
-
-        self.expression_statement()
     }
 
     fn if_statement(&mut self) -> Result<Statement<'de>, LoxError> {
-        self.advance()?;
         self.expect(TokenKind::LeftParen)?; // consume the '('
         let condition = self.expression()?;
         self.expect(TokenKind::RightParen)?; // consume the ')'
