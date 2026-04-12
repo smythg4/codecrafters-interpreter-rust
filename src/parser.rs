@@ -107,7 +107,11 @@ impl<'de> Parser<'de> {
     fn block(&mut self) -> Result<Vec<Statement<'de>>, LoxError> {
         let mut statements = Vec::new();
 
-        while !self.check_peek(TokenKind::RightBrace)? && self.lexer.peek().is_some() {
+        while !self.check_peek(TokenKind::RightBrace)? {
+            if self.lexer.peek().is_none() {
+                let last_line = self.whole.lines().count();
+                return Err(LoxError::UnexpectedEofExpecting(last_line, "}"));
+            }
             statements.push(self.declaration()?);
         }
         self.expect(TokenKind::RightBrace)?;
@@ -134,12 +138,14 @@ impl<'de> Parser<'de> {
     }
 
     fn statement(&mut self) -> Result<Statement<'de>, LoxError> {
-        if self.match_any(&[TokenKind::Print])?.is_some() {
-            return self.print_statement();
-        }
         if self.match_any(&[TokenKind::LeftBrace])?.is_some() {
             return Ok(Statement::Block(self.block()?));
         }
+
+        if self.match_any(&[TokenKind::Print])?.is_some() {
+            return self.print_statement();
+        }
+
         self.expression_statement()
     }
 

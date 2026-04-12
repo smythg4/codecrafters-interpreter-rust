@@ -11,7 +11,6 @@ pub struct Environment {
 }
 
 impl Environment {
-
     /// creates a child scope from a parent
     pub fn from(parent: &Rc<RefCell<Environment>>) -> Self {
         Environment {
@@ -115,7 +114,7 @@ impl Intepreter {
                     Some(v) => self.evaluate_expression(v)?,
                 };
                 self.environment.borrow_mut().define(name.into(), value);
-            },
+            }
             Statement::Block(statements) => {
                 self.environment = Rc::new(RefCell::new(Environment::from(&self.environment)));
                 for statement in statements {
@@ -124,7 +123,7 @@ impl Intepreter {
                 let env = self.environment.take();
                 let parent_env = env.parent_env().unwrap();
                 self.environment = parent_env;
-            },
+            }
         }
         Ok(())
     }

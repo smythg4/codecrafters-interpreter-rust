@@ -26,6 +26,8 @@ pub enum LoxError {
     UnexpectedEof(usize), // line number
     #[error("[line {0}] Parse Error: Unexpected Token: expected {1:?}, got {2:?}.")]
     UnexpectedToken(usize, TokenKind, TokenKind), // (line#, expected, got)
+    #[error("[line {0}] Error at end: Expect '{1}'.")]
+    UnexpectedEofExpecting(usize, &'static str),
     #[error("[line {0}] Parse Error: Invalid Token for current operation: {1:?}.")]
     InvalidToken(usize, TokenKind), // (line#, tokentype)
     #[error("[line {0}] Type Error: Invalid Type for current operation: expected: {1}, got {2:?}")]
