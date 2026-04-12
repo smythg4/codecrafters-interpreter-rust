@@ -46,7 +46,7 @@ fn eval_unary(operator: UnaryOperator, right: Expression<'_>) -> Result<Value, L
     let right = evaluate_expression(right)?;
     match (operator, right) {
         (UnaryOperator::Minus, Value::Number(n)) => Ok(Value::Number(-n)),
-        (UnaryOperator::Minus, val) => Err(LoxError::InvalidType("NUMBER".into(), val)),
+        (UnaryOperator::Minus, _) => Err(LoxError::NumberOperandRequired),
         (UnaryOperator::Not, val) => Ok(Value::Boolean(!is_truthy(val))),
     }
 }
@@ -65,6 +65,7 @@ fn eval_binary(operator: BinaryOperator, left: Expression<'_>, right: Expression
     match (operator, left, right) {
         (BinaryOperator::Add, Value::Number(x), Value::Number(y)) => Ok(Value::Number(x+y)),
         (BinaryOperator::Add, Value::String(str1), Value::String(str2)) => Ok(Value::String(format!("{}{}", str1, str2))),
+        (BinaryOperator::Add, _, _) => Err(LoxError::TwoNumberOrStringOperandsRequired),
         (BinaryOperator::Minus, Value::Number(x), Value::Number(y)) => Ok(Value::Number(x-y)),
         (BinaryOperator::Times, Value::Number(x), Value::Number(y)) => Ok(Value::Number(x*y)),
         (BinaryOperator::Divide, Value::Number(x), Value::Number(y)) => Ok(Value::Number(x/y)),
@@ -74,7 +75,7 @@ fn eval_binary(operator: BinaryOperator, left: Expression<'_>, right: Expression
         (BinaryOperator::LessEqual, Value::Number(x), Value::Number(y)) => Ok(Value::Boolean(x<=y)),
         (BinaryOperator::Equal, left, right) => Ok(Value::Boolean(is_equal(left, right)?)),
         (BinaryOperator::NotEqual, left, right) => Ok(Value::Boolean(!is_equal(left, right)?)),
-        (_, left, right)=> Err(LoxError::TypeMismatch(left, right)),
+        (_, _, _)=> Err(LoxError::TwoNumberOperandsRequired),
     }
 }
 
@@ -86,6 +87,7 @@ fn is_equal(left: Value, right: Value) -> Result<bool, LoxError> {
         (Value::String(x), Value::String(y)) => Ok(x==y),
         (Value::Boolean(x), Value::Boolean(y)) => Ok(x==y),
         (left, right)=> Ok(left == right),
+        // I think a TypeMismatch is appropriate here, but the tests want 65.0 == "65" to return Ok(`false`)
         //(left, right)=> Err(LoxError::TypeMismatch(left, right)),
     }
 }

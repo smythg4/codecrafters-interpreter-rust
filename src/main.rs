@@ -5,6 +5,7 @@ use std::{io::Read, path::PathBuf};
 use codecrafters_interpreter::Parser as LoxParser;
 use codecrafters_interpreter::lex_file;
 use codecrafters_interpreter::evaluate_expression;
+use codecrafters_interpreter::LoxError;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -50,7 +51,12 @@ fn main() -> Result<()> {
                 Ok(exp) => exp,
                 Err(e) => {
                     eprintln!("{e}");
-                    std::process::exit(65);
+                    match e {
+                        LoxError::NumberOperandRequired | LoxError::TwoNumberOperandsRequired | LoxError::TwoNumberOrStringOperandsRequired => {
+                            std::process::exit(70);
+                        }
+                        _ => std::process::exit(65),
+                    }
                 }
             };
             let val = evaluate_expression(exp)?;

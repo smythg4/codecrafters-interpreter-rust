@@ -30,7 +30,13 @@ pub enum LoxError {
     #[error("Type Error: Invalid Type for current operation: expected: {0}, got {1:?}")]
     InvalidType(String, Value),
     #[error("Type Mismatch: {0:?} , {1:?}")]
-    TypeMismatch(Value, Value)
+    TypeMismatch(Value, Value),
+    #[error("Operand must be a number.")]
+    NumberOperandRequired,
+    #[error("Operands must be numbers.")]
+    TwoNumberOperandsRequired,
+    #[error("Operands must be two numbers or two strings.")]
+    TwoNumberOrStringOperandsRequired,
 }
 
 pub fn lex_file(path: PathBuf) -> Result<()> {
