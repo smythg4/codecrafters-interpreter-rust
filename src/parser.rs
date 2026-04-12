@@ -104,6 +104,16 @@ impl<'de> Parser<'de> {
         }
     }
 
+    fn block(&mut self) -> Result<Vec<Statement<'de>>, LoxError> {
+        let mut statements = Vec::new();
+
+        while !self.check_peek(TokenKind::RightBrace)? && self.lexer.peek().is_some() {
+            statements.push(self.declaration()?);
+        }
+        self.expect(TokenKind::RightBrace)?;
+        Ok(statements)
+    }
+
     fn declaration(&mut self) -> Result<Statement<'de>, LoxError> {
         if self.match_any(&[TokenKind::Var])?.is_some() {
             return self.var_declaration();
@@ -127,6 +137,9 @@ impl<'de> Parser<'de> {
         if self.match_any(&[TokenKind::Print])?.is_some() {
             return self.print_statement();
         }
+        if self.match_any(&[TokenKind::LeftBrace])?.is_some() {
+            return Ok(Statement::Block(self.block()?));
+        }
         self.expression_statement()
     }
 
@@ -142,7 +155,6 @@ impl<'de> Parser<'de> {
         Ok(Statement::ExpressionStatement(expr))
     }
 
-    // Recursive descent methods.
     pub fn expression(&mut self) -> Result<Expression<'de>, LoxError> {
         self.assignment()
     }
@@ -153,6 +165,8 @@ impl<'de> Parser<'de> {
         if let Some(op) = self.match_any(&[TokenKind::Equal])? {
             let value = Box::new(self.assignment()?);
 
+            // makes sure that the LHS of the `=` is a valid thing to assign a value
+            // to
             match expr {
                 Expression::Variable(line, name) => {
                     return Ok(Expression::Assign { line, name, value });

@@ -48,7 +48,7 @@ pub enum LoxError {
     LiteralInvalidToken(usize, TokenKind),
     #[error("[line {0}] Undefined variable '{1}'.")]
     UndefinedVariable(usize, String), // line, name
-    #[error("[line {0}] Invalid assignment target'.")]
+    #[error("[line {0}] Invalid assignment target.")]
     InvalidAssignment(usize), // line
 }
 

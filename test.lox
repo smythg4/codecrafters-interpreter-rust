@@ -1,5 +1,6 @@
-var bar = 99;
-var foo = 99;
-print bar + foo;
-var quz = 99;
-print bar + foo + quz;
+{
+    var bar = 11;
+    var world = 11;
+    {
+        print bar + world;
+}

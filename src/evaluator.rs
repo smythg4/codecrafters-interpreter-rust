@@ -1,8 +1,55 @@
 use crate::LoxError;
 use crate::ast::{BinaryOperator, Expression, Literal, Statement, UnaryOperator};
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
-pub type Environment = HashMap<String, Value>;
+#[derive(Debug, Clone, Default)]
+pub struct Environment {
+    values: HashMap<String, Value>,
+    parent: Option<Rc<RefCell<Environment>>>,
+}
+
+impl Environment {
+
+    /// creates a child scope from a parent
+    pub fn from(parent: &Rc<RefCell<Environment>>) -> Self {
+        Environment {
+            values: HashMap::new(),
+            parent: Some(Rc::clone(parent)),
+        }
+    }
+
+    /// used for variable declaration (and initialization) only
+    pub fn define(&mut self, key: String, value: Value) -> Option<Value> {
+        self.values.insert(key, value)
+    }
+
+    /// used for mutable assignments, must first find the scope in which the variable was declared
+    pub fn assign(&mut self, key: &str, value: Value) -> Option<Value> {
+        if self.values.contains_key(key) {
+            return self.values.insert(key.to_string(), value);
+        }
+        if let Some(parent) = &self.parent {
+            return parent.borrow_mut().assign(key, value);
+        }
+        None
+    }
+
+    /// first looks in 'local' scope, then checks the parent scope
+    /// this will cascade all the way up the environment stack before returning `None`
+    pub fn get(&self, key: &str) -> Option<Value> {
+        if let Some(val) = self.values.get(key) {
+            return Some(val.clone());
+        }
+        self.parent.as_ref().and_then(|p| p.borrow().get(key))
+    }
+
+    /// pop off the return stack
+    pub fn parent_env(self) -> Option<Rc<RefCell<Environment>>> {
+        self.parent
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
@@ -37,13 +84,13 @@ impl From<Literal<'_>> for Value {
 }
 
 pub struct Intepreter {
-    environment: Environment,
+    environment: Rc<RefCell<Environment>>,
 }
 
 impl Intepreter {
     pub fn new() -> Self {
         Intepreter {
-            environment: Environment::new(),
+            environment: Rc::new(RefCell::new(Environment::default())),
         }
     }
 
@@ -67,16 +114,25 @@ impl Intepreter {
                     None => Value::Nil,
                     Some(v) => self.evaluate_expression(v)?,
                 };
-                self.environment.insert(name.into(), value);
-            }
+                self.environment.borrow_mut().define(name.into(), value);
+            },
+            Statement::Block(statements) => {
+                self.environment = Rc::new(RefCell::new(Environment::from(&self.environment)));
+                for statement in statements {
+                    self.execute_statement(statement)?;
+                }
+                let env = self.environment.take();
+                let parent_env = env.parent_env().unwrap();
+                self.environment = parent_env;
+            },
         }
         Ok(())
     }
 
-    fn evaluate_print(&mut self, exp: Expression) -> Result<Value, LoxError> {
+    fn evaluate_print(&mut self, exp: Expression) -> Result<(), LoxError> {
         let value = self.evaluate_expression(exp)?;
         println!("{value}");
-        Ok(value)
+        Ok(())
     }
 
     pub fn evaluate_expression(&mut self, expr: Expression<'_>) -> Result<Value, LoxError> {
@@ -90,14 +146,18 @@ impl Intepreter {
             } => self.eval_binary(operator, *left, *right),
             Expression::Grouping(expr) => self.evaluate_expression(*expr),
             Expression::Assign { line, name, value } => {
-                if !self.environment.contains_key(name) {
+                let result = self.evaluate_expression(*value)?;
+                if self
+                    .environment
+                    .borrow_mut()
+                    .assign(name.into(), result.clone())
+                    .is_none()
+                {
                     return Err(LoxError::UndefinedVariable(line, name.into()));
                 }
-                let result = self.evaluate_expression(*value)?;
-                self.environment.insert(name.into(), result.clone());
                 Ok(result)
             }
-            Expression::Variable(line, name) => match self.environment.get(name) {
+            Expression::Variable(line, name) => match self.environment.borrow().get(name) {
                 Some(value) => Ok(value.clone()),
                 None => Err(LoxError::UndefinedVariable(line, name.into())),
             },

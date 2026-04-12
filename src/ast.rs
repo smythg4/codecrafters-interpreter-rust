@@ -9,6 +9,7 @@ pub enum Statement<'de> {
         name: &'de str,
         initializer: Option<Expression<'de>>,
     },
+    Block(Vec<Statement<'de>>),
 }
 
 #[derive(Debug, Clone)]
