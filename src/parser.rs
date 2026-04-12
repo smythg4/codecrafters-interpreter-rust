@@ -161,6 +161,7 @@ impl<'de> Parser<'de> {
     }
 
     fn if_statement(&mut self) -> Result<Statement<'de>, LoxError> {
+        self.advance()?;
         self.expect(TokenKind::LeftParen)?; // consume the '('
         let condition = self.expression()?;
         self.expect(TokenKind::RightParen)?; // consume the ')'
