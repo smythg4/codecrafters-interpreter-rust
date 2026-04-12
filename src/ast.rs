@@ -15,6 +15,10 @@ pub enum Statement<'de> {
         then_branch: Box<Statement<'de>>,
         else_branch: Option<Box<Statement<'de>>>,
     },
+    While {
+        condition: Expression<'de>,
+        statement: Box<Statement<'de>>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -209,11 +213,11 @@ impl<'de> std::fmt::Display for Expression<'de> {
             } => {
                 write!(f, "({operator} {left} {right})")
             }
-            Expression::Assign { line, name, value } => {
-                todo!();
+            Expression::Assign { name, value, .. } => {
+                write!(f, "{} = {}", name, value)
             }
-            Expression::Variable(line, name) => {
-                todo!();
+            Expression::Variable(name, ..) => {
+                write!(f, "{}", name)
             }
             Expression::Grouping(exp) => write!(f, "(group {exp})"),
         }

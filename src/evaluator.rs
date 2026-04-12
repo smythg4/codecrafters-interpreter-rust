@@ -134,6 +134,15 @@ impl Intepreter {
                 } else if else_branch.is_some() {
                     self.execute_statement(*else_branch.unwrap())?;
                 }
+            },
+            Statement::While {
+                condition,
+                statement
+            } => {
+                // TODO: this cloning seems silly here!
+                while Self::is_truthy(&self.evaluate_expression(condition.clone())?) {
+                    self.execute_statement(*statement.clone())?;
+                }
             }
         }
         Ok(())

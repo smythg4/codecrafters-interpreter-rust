@@ -155,6 +155,10 @@ impl<'de> Parser<'de> {
                 TokenKind::If => {
                     self.advance()?;
                     self.if_statement()
+                },
+                TokenKind::While => {
+                    self.advance()?;
+                    self.while_statement()
                 }
                 TokenKind::Print => {
                     self.advance()?;
@@ -181,6 +185,19 @@ impl<'de> Parser<'de> {
             condition,
             then_branch,
             else_branch,
+        })
+    }
+
+    fn while_statement(&mut self) -> Result<Statement<'de>, LoxError> {
+        self.expect(TokenKind::LeftParen)?; // consume the '('
+        let condition = self.expression()?;
+        self.expect(TokenKind::RightParen)?; // consume the ')'
+
+        let statement = Box::new(self.statement()?);
+
+        Ok(Statement::While {
+            condition,
+            statement,
         })
     }
 
