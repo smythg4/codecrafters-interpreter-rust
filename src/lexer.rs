@@ -46,10 +46,11 @@ impl<'de> Iterator for Lexer<'de> {
                 IfEqualElse(TokenKind, TokenKind),
             }
 
-            let just = move |kind: TokenKind| {
+            let just = |kind: TokenKind| {
                 Some(Ok(Token {
                     kind,
                     offset: c_at,
+                    line: self.whole[..c_at].lines().count(),
                     origin: c_str,
                 }))
             };
@@ -89,6 +90,7 @@ impl<'de> Iterator for Lexer<'de> {
                         Some(Ok(Token {
                             origin: literal,
                             offset: c_at,
+                            line: self.whole[..c_at].lines().count(),
                             kind: TokenKind::String,
                         }))
                     } else {
@@ -112,6 +114,7 @@ impl<'de> Iterator for Lexer<'de> {
                         Some(Ok(Token {
                             origin: c_str,
                             offset: c_at,
+                            line: self.whole[..c_at].lines().count(),
                             kind: TokenKind::Slash,
                         }))
                     }
@@ -148,6 +151,7 @@ impl<'de> Iterator for Lexer<'de> {
                     return Some(Ok(Token {
                         origin: literal,
                         offset: c_at,
+                        line: self.whole[..c_at].lines().count(),
                         kind,
                     }));
                 }
@@ -183,6 +187,7 @@ impl<'de> Iterator for Lexer<'de> {
                     return Some(Ok(Token {
                         origin: literal,
                         offset: c_at,
+                        line: self.whole[..c_at].lines().count(),
                         kind: TokenKind::Number(n),
                     }));
                 }
@@ -198,12 +203,14 @@ impl<'de> Iterator for Lexer<'de> {
                         Some(Ok(Token {
                             origin: span,
                             offset: c_at,
+                            line: self.whole[..c_at].lines().count(),
                             kind: yes,
                         }))
                     } else {
                         Some(Ok(Token {
                             origin: c_str,
                             offset: c_at,
+                            line: self.whole[..c_at].lines().count(),
                             kind: no,
                         }))
                     }

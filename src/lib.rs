@@ -9,9 +9,9 @@ mod lexer;
 mod parser;
 mod token;
 
+pub use evaluator::{Value, evaluate_expression};
 pub use parser::Parser;
 use token::TokenKind;
-pub use evaluator::{evaluate_expression, Value};
 
 #[derive(Error, Debug, Clone)]
 pub enum LoxError {
@@ -25,18 +25,26 @@ pub enum LoxError {
     UnexpectedEof(usize), // line number
     #[error("[line {0}] Parse Error: Unexpected Token: expected {1:?}, got {2:?}.")]
     UnexpectedToken(usize, TokenKind, TokenKind), // (line#, expected, got)
-    #[error("[line {0}] Parse Error: Invalid Token for current operation: {0:?}.")]
+    #[error("[line {0}] Parse Error: Invalid Token for current operation: {1:?}.")]
     InvalidToken(usize, TokenKind), // (line#, tokentype)
-    #[error("Type Error: Invalid Type for current operation: expected: {0}, got {1:?}")]
-    InvalidType(String, Value),
-    #[error("Type Mismatch: {0:?} , {1:?}")]
-    TypeMismatch(Value, Value),
-    #[error("Operand must be a number.")]
-    NumberOperandRequired,
-    #[error("Operands must be numbers.")]
-    TwoNumberOperandsRequired,
-    #[error("Operands must be two numbers or two strings.")]
-    TwoNumberOrStringOperandsRequired,
+    #[error("[line {0}] Type Error: Invalid Type for current operation: expected: {1}, got {2:?}")]
+    InvalidType(usize, String, Value),
+    #[error("[line {0}] Type Mismatch: {1:?} , {2:?}")]
+    TypeMismatch(usize, Value, Value),
+    #[error("[line {0}] Operand must be a number.")]
+    NumberOperandRequired(usize),
+    #[error("[line {0}] Operands must be numbers.")]
+    TwoNumberOperandsRequired(usize),
+    #[error("[line {0}] Operands must be two numbers or two strings.")]
+    TwoNumberOrStringOperandsRequired(usize),
+    #[error("[line {0}] Operands must be booleans.")]
+    TwoBooleanOperandsRequired(usize),
+    #[error("[line {0}] Invalid Token for Binary Expression: {1:?}.")]
+    BinaryInvalidToken(usize, TokenKind),
+    #[error("[line {0}] Invalid Token for Unary Expression: {1:?}.")]
+    UnaryInvalidToken(usize, TokenKind),
+    #[error("[line {0}] Invalid Token for Literal Expression: {1:?}.")]
+    LiteralInvalidToken(usize, TokenKind),
 }
 
 pub fn lex_file(path: PathBuf) -> Result<()> {

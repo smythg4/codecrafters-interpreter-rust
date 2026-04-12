@@ -40,92 +40,112 @@ impl<'de> TryFrom<Token<'de>> for Literal<'de> {
                 Literal::String(value.origin.trim_matches('"'))
             }
             TokenKind::Nil => Literal::Nil,
-            _ => return Err(LoxError::InvalidToken(0, value.kind)), // calculate line count
+            _ => return Err(LoxError::LiteralInvalidToken(value.line, value.kind)), // calculate line count
         })
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum UnaryOperator {
-    Minus,
-    Not,
+    Minus(usize),
+    Not(usize),
 }
 
 impl std::fmt::Display for UnaryOperator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            UnaryOperator::Minus => write!(f, "-"),
-            UnaryOperator::Not => write!(f, "!"),
+            UnaryOperator::Minus(_) => write!(f, "-"),
+            UnaryOperator::Not(_) => write!(f, "!"),
         }
     }
 }
 
-impl<'de> TryFrom<Token<'_>> for UnaryOperator {
+impl TryFrom<Token<'_>> for UnaryOperator {
     type Error = LoxError;
     fn try_from(value: Token<'_>) -> Result<Self, Self::Error> {
         Ok(match value.kind {
-            TokenKind::Minus => UnaryOperator::Minus,
-            TokenKind::Bang => UnaryOperator::Not,
-            _ => return Err(LoxError::InvalidToken(0, value.kind)), // calculate line count
+            TokenKind::Minus => UnaryOperator::Minus(value.line),
+            TokenKind::Bang => UnaryOperator::Not(value.line),
+            _ => return Err(LoxError::UnaryInvalidToken(value.line, value.kind)), // calculate line count
         })
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum BinaryOperator {
-    Add,
-    Minus,
-    Times,
-    Divide,
-    Assign,
-    Equal,
-    NotEqual,
-    GreaterThan,
-    LessThan,
-    GreaterEqual,
-    LessEqual,
-    And,
-    Or,
+    Add(usize),
+    Minus(usize),
+    Times(usize),
+    Divide(usize),
+    Assign(usize),
+    Equal(usize),
+    NotEqual(usize),
+    GreaterThan(usize),
+    LessThan(usize),
+    GreaterEqual(usize),
+    LessEqual(usize),
+    And(usize),
+    Or(usize),
+}
+
+impl BinaryOperator {
+    pub fn get_line(&self) -> usize {
+        match self {
+            BinaryOperator::Add(line) => *line,
+            BinaryOperator::Minus(line) => *line,
+            BinaryOperator::Times(line) => *line,
+            BinaryOperator::Divide(line) => *line,
+            BinaryOperator::Assign(line) => *line,
+            BinaryOperator::Equal(line) => *line,
+            BinaryOperator::NotEqual(line) => *line,
+            BinaryOperator::GreaterThan(line) => *line,
+            BinaryOperator::LessThan(line) => *line,
+            BinaryOperator::GreaterEqual(line) => *line,
+            BinaryOperator::LessEqual(line) => *line,
+            BinaryOperator::And(line) => *line,
+            BinaryOperator::Or(line) => *line,
+        }
+    }
 }
 
 impl std::fmt::Display for BinaryOperator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BinaryOperator::Add => write!(f, "+"),
-            BinaryOperator::Minus => write!(f, "-"),
-            BinaryOperator::Times => write!(f, "*"),
-            BinaryOperator::Divide => write!(f, "/"),
-            BinaryOperator::Assign => write!(f, "="),
-            BinaryOperator::NotEqual => write!(f, "!="),
-            BinaryOperator::GreaterThan => write!(f, ">"),
-            BinaryOperator::GreaterEqual => write!(f, ">="),
-            BinaryOperator::LessThan => write!(f, "<"),
-            BinaryOperator::Equal => write!(f, "=="),
-            BinaryOperator::LessEqual => write!(f, "<="),
-            BinaryOperator::And => write!(f, "and"),
-            BinaryOperator::Or => write!(f, "or"),
+            BinaryOperator::Add(_) => write!(f, "+"),
+            BinaryOperator::Minus(_) => write!(f, "-"),
+            BinaryOperator::Times(_) => write!(f, "*"),
+            BinaryOperator::Divide(_) => write!(f, "/"),
+            BinaryOperator::Assign(_) => write!(f, "="),
+            BinaryOperator::NotEqual(_) => write!(f, "!="),
+            BinaryOperator::GreaterThan(_) => write!(f, ">"),
+            BinaryOperator::GreaterEqual(_) => write!(f, ">="),
+            BinaryOperator::LessThan(_) => write!(f, "<"),
+            BinaryOperator::Equal(_) => write!(f, "=="),
+            BinaryOperator::LessEqual(_) => write!(f, "<="),
+            BinaryOperator::And(_) => write!(f, "and"),
+            BinaryOperator::Or(_) => write!(f, "or"),
         }
     }
 }
 
-impl<'de> TryFrom<Token<'_>> for BinaryOperator {
+impl TryFrom<Token<'_>> for BinaryOperator {
     type Error = LoxError;
     fn try_from(value: Token<'_>) -> Result<Self, Self::Error> {
         Ok(match value.kind {
-            TokenKind::Plus => BinaryOperator::Add,
-            TokenKind::Minus => BinaryOperator::Minus,
-            TokenKind::Star => BinaryOperator::Times,
-            TokenKind::Slash => BinaryOperator::Divide,
-            TokenKind::Equal => BinaryOperator::Assign,
-            TokenKind::EqualEqual => BinaryOperator::Equal,
-            TokenKind::BangEqual => BinaryOperator::NotEqual,
-            TokenKind::Greater => BinaryOperator::GreaterThan,
-            TokenKind::Less => BinaryOperator::LessThan,
-            TokenKind::GreaterEqual => BinaryOperator::GreaterEqual,
-            TokenKind::LessEqual => BinaryOperator::LessEqual,
-            TokenKind::And => BinaryOperator::And,
-            TokenKind::Or => BinaryOperator::Or,
-            _ => return Err(LoxError::InvalidToken(0, value.kind)), // calculate line count
+            TokenKind::Plus => BinaryOperator::Add(value.line),
+            TokenKind::Minus => BinaryOperator::Minus(value.line),
+            TokenKind::Star => BinaryOperator::Times(value.line),
+            TokenKind::Slash => BinaryOperator::Divide(value.line),
+            TokenKind::Equal => BinaryOperator::Assign(value.line),
+            TokenKind::EqualEqual => BinaryOperator::Equal(value.line),
+            TokenKind::BangEqual => BinaryOperator::NotEqual(value.line),
+            TokenKind::Greater => BinaryOperator::GreaterThan(value.line),
+            TokenKind::Less => BinaryOperator::LessThan(value.line),
+            TokenKind::GreaterEqual => BinaryOperator::GreaterEqual(value.line),
+            TokenKind::LessEqual => BinaryOperator::LessEqual(value.line),
+            TokenKind::And => BinaryOperator::And(value.line),
+            TokenKind::Or => BinaryOperator::Or(value.line),
+            _ => return Err(LoxError::BinaryInvalidToken(value.line, value.kind)), // calculate line count
         })
     }
 }
@@ -207,8 +227,7 @@ impl<'de> Parser<'de> {
         if token.kind == kind {
             Ok(token)
         } else {
-            let line_count = self.whole[..token.offset].lines().count();
-            Err(LoxError::UnexpectedToken(line_count, kind, token.kind))
+            Err(LoxError::UnexpectedToken(token.line, kind, token.kind))
         }
     }
 
@@ -295,9 +314,8 @@ impl<'de> Parser<'de> {
             return Ok(Expression::Grouping(Box::new(expression)));
         }
 
-        let line_count = self.whole[..token.offset].lines().count();
         Err(LoxError::UnexpectedToken(
-            line_count,
+            token.line,
             TokenKind::LeftParen,
             token.kind,
         ))

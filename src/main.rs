@@ -2,10 +2,10 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use std::{io::Read, path::PathBuf};
 
-use codecrafters_interpreter::Parser as LoxParser;
-use codecrafters_interpreter::lex_file;
-use codecrafters_interpreter::evaluate_expression;
 use codecrafters_interpreter::LoxError;
+use codecrafters_interpreter::Parser as LoxParser;
+use codecrafters_interpreter::evaluate_expression;
+use codecrafters_interpreter::lex_file;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -19,6 +19,7 @@ enum Commands {
     Tokenize { filename: PathBuf },
     Parse { filename: PathBuf },
     Evaluate { filename: PathBuf },
+    Run { filename: PathBuf },
 }
 
 fn main() -> Result<()> {
@@ -57,16 +58,27 @@ fn main() -> Result<()> {
             let val = evaluate_expression(exp);
             match val {
                 Ok(val) => println!("{val}"),
-                Err(e) if matches!(e,LoxError::NumberOperandRequired | LoxError::TwoNumberOperandsRequired | LoxError::TwoNumberOrStringOperandsRequired) => {
+                Err(e)
+                    if matches!(
+                        e,
+                        LoxError::NumberOperandRequired(_)
+                            | LoxError::TwoNumberOperandsRequired(_)
+                            | LoxError::TwoNumberOrStringOperandsRequired(_)
+                            | LoxError::TwoBooleanOperandsRequired(_)
+                    ) =>
+                {
                     eprintln!("{e}");
                     std::process::exit(70);
-                },
+                }
                 Err(e) => {
                     eprintln!("{e}");
                     std::process::exit(65)
-                },
+                }
             }
-
+        }
+        Commands::Run { filename } => {
+            println!("Filename: {}", filename.display());
+            todo!()
         }
     };
 

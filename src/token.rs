@@ -47,6 +47,7 @@ pub enum TokenKind {
 pub struct Token<'de> {
     pub origin: &'de str,
     pub offset: usize,
+    pub line: usize,
     pub kind: TokenKind,
 }
 

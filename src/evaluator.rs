@@ -1,5 +1,5 @@
-use crate::parser::{BinaryOperator, Expression, Literal, UnaryOperator};
 use crate::LoxError;
+use crate::parser::{BinaryOperator, Expression, Literal, UnaryOperator};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
@@ -11,12 +11,12 @@ pub enum Value {
 
 impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self{
+        match self {
             Value::Boolean(b) => write!(f, "{b}"),
             Value::Nil => write!(f, "nil"),
             Value::String(s) => write!(f, "{s}"),
             Value::Number(n) => {
-                write!(f,"{n}")
+                write!(f, "{n}")
             }
         }
     }
@@ -37,7 +37,11 @@ pub fn evaluate_expression(expr: Expression<'_>) -> Result<Value, LoxError> {
     match expr {
         Expression::Literal(l) => Ok(Value::from(l)),
         Expression::Unary { operator, right } => eval_unary(operator, *right),
-        Expression::Binary { left, operator, right } => eval_binary(operator, *left, *right),
+        Expression::Binary {
+            left,
+            operator,
+            right,
+        } => eval_binary(operator, *left, *right),
         Expression::Grouping(expr) => evaluate_expression(*expr),
     }
 }
@@ -45,9 +49,9 @@ pub fn evaluate_expression(expr: Expression<'_>) -> Result<Value, LoxError> {
 fn eval_unary(operator: UnaryOperator, right: Expression<'_>) -> Result<Value, LoxError> {
     let right = evaluate_expression(right)?;
     match (operator, right) {
-        (UnaryOperator::Minus, Value::Number(n)) => Ok(Value::Number(-n)),
-        (UnaryOperator::Minus, _) => Err(LoxError::NumberOperandRequired),
-        (UnaryOperator::Not, val) => Ok(Value::Boolean(!is_truthy(val))),
+        (UnaryOperator::Minus(_), Value::Number(n)) => Ok(Value::Number(-n)),
+        (UnaryOperator::Minus(line), _) => Err(LoxError::NumberOperandRequired(line)),
+        (UnaryOperator::Not(_), val) => Ok(Value::Boolean(!is_truthy(val))),
     }
 }
 
@@ -59,23 +63,38 @@ fn is_truthy(value: Value) -> bool {
     }
 }
 
-fn eval_binary(operator: BinaryOperator, left: Expression<'_>, right: Expression<'_>) -> Result<Value, LoxError> {
+fn eval_binary(
+    operator: BinaryOperator,
+    left: Expression<'_>,
+    right: Expression<'_>,
+) -> Result<Value, LoxError> {
     let left = evaluate_expression(left)?;
     let right = evaluate_expression(right)?;
     match (operator, left, right) {
-        (BinaryOperator::Add, Value::Number(x), Value::Number(y)) => Ok(Value::Number(x+y)),
-        (BinaryOperator::Add, Value::String(str1), Value::String(str2)) => Ok(Value::String(format!("{}{}", str1, str2))),
-        (BinaryOperator::Add, _, _) => Err(LoxError::TwoNumberOrStringOperandsRequired),
-        (BinaryOperator::Minus, Value::Number(x), Value::Number(y)) => Ok(Value::Number(x-y)),
-        (BinaryOperator::Times, Value::Number(x), Value::Number(y)) => Ok(Value::Number(x*y)),
-        (BinaryOperator::Divide, Value::Number(x), Value::Number(y)) => Ok(Value::Number(x/y)),
-        (BinaryOperator::GreaterThan, Value::Number(x), Value::Number(y)) => Ok(Value::Boolean(x>y)),
-        (BinaryOperator::GreaterEqual, Value::Number(x), Value::Number(y)) => Ok(Value::Boolean(x>=y)),
-        (BinaryOperator::LessThan, Value::Number(x), Value::Number(y)) => Ok(Value::Boolean(x<y)),
-        (BinaryOperator::LessEqual, Value::Number(x), Value::Number(y)) => Ok(Value::Boolean(x<=y)),
-        (BinaryOperator::Equal, left, right) => Ok(Value::Boolean(is_equal(left, right)?)),
-        (BinaryOperator::NotEqual, left, right) => Ok(Value::Boolean(!is_equal(left, right)?)),
-        (_, _, _)=> Err(LoxError::TwoNumberOperandsRequired),
+        (BinaryOperator::Add(_), Value::Number(x), Value::Number(y)) => Ok(Value::Number(x + y)),
+        (BinaryOperator::Add(_), Value::String(str1), Value::String(str2)) => {
+            Ok(Value::String(format!("{}{}", str1, str2)))
+        }
+        (BinaryOperator::Add(line), _, _) => Err(LoxError::TwoNumberOrStringOperandsRequired(line)),
+        (BinaryOperator::Minus(_), Value::Number(x), Value::Number(y)) => Ok(Value::Number(x - y)),
+        (BinaryOperator::Times(_), Value::Number(x), Value::Number(y)) => Ok(Value::Number(x * y)),
+        (BinaryOperator::Divide(_), Value::Number(x), Value::Number(y)) => Ok(Value::Number(x / y)),
+        (BinaryOperator::GreaterThan(_), Value::Number(x), Value::Number(y)) => {
+            Ok(Value::Boolean(x > y))
+        }
+        (BinaryOperator::GreaterEqual(_), Value::Number(x), Value::Number(y)) => {
+            Ok(Value::Boolean(x >= y))
+        }
+        (BinaryOperator::LessThan(_), Value::Number(x), Value::Number(y)) => Ok(Value::Boolean(x < y)),
+        (BinaryOperator::LessEqual(_), Value::Number(x), Value::Number(y)) => {
+            Ok(Value::Boolean(x <= y))
+        }
+        (BinaryOperator::Equal(_), left, right) => Ok(Value::Boolean(is_equal(left, right)?)),
+        (BinaryOperator::NotEqual(_), left, right) => Ok(Value::Boolean(!is_equal(left, right)?)),
+        (BinaryOperator::And(_), Value::Boolean(b1), Value::Boolean(b2)) => Ok(Value::Boolean(b1 && b2)),
+        (BinaryOperator::Or(_), Value::Boolean(b1), Value::Boolean(b2)) => Ok(Value::Boolean(b1 || b2)),
+        (BinaryOperator::And(line) | BinaryOperator::Or(line), _, _) => Err(LoxError::TwoBooleanOperandsRequired(line)),
+        (op, _, _) => Err(LoxError::TwoNumberOperandsRequired(op.get_line())),
     }
 }
 
@@ -83,10 +102,10 @@ fn is_equal(left: Value, right: Value) -> Result<bool, LoxError> {
     match (left, right) {
         (Value::Nil, Value::Nil) => Ok(true),
         (Value::Nil, _) => Ok(false),
-        (Value::Number(x), Value::Number(y)) => Ok(x==y),
-        (Value::String(x), Value::String(y)) => Ok(x==y),
-        (Value::Boolean(x), Value::Boolean(y)) => Ok(x==y),
-        (left, right)=> Ok(left == right),
+        (Value::Number(x), Value::Number(y)) => Ok(x == y),
+        (Value::String(x), Value::String(y)) => Ok(x == y),
+        (Value::Boolean(x), Value::Boolean(y)) => Ok(x == y),
+        (left, right) => Ok(left == right),
         // I think a TypeMismatch is appropriate here, but the tests want 65.0 == "65" to return Ok(`false`)
         //(left, right)=> Err(LoxError::TypeMismatch(left, right)),
     }
