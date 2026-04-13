@@ -211,6 +211,8 @@ impl<'de> Parser<'de> {
         let mut initializer= None;
         if self.match_any(&[TokenKind::Var])?.is_some() {
             initializer = Some(self.var_declaration()?);
+        } else if self.check_peek(TokenKind::Semicolon)? {
+            self.advance()?; // consume the ';', no initializer
         } else {
             initializer = Some(self.expression_statement()?);
         }
