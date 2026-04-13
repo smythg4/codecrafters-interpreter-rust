@@ -56,6 +56,34 @@ pub enum Value {
     Number(f64),
     String(String), // owned, not &'de str
     Nil,
+    NativeFunction {
+        arity: usize,
+        func: fn(&[Value]) -> Result<Value, LoxError>,
+    },
+}
+
+impl Value {
+    pub fn arity(&self) -> usize {
+        match self {
+            Self::NativeFunction { arity, .. } => *arity,
+            _ => unimplemented!(),
+        }
+    }
+
+    pub fn call(
+        &self,
+        line: usize,
+        interpreter: &mut Intepreter,
+        arguments: Vec<Value>,
+    ) -> Result<Value, LoxError> {
+        if arguments.len() != self.arity() {
+            return Err(LoxError::Arity(line, self.arity(), arguments.len()));
+        }
+        match self {
+            Self::NativeFunction { func, .. } => func(&arguments),
+            _ => Err(LoxError::Uncallable(line)),
+        }
+    }
 }
 
 impl std::fmt::Display for Value {
@@ -67,6 +95,8 @@ impl std::fmt::Display for Value {
             Value::Number(n) => {
                 write!(f, "{n}")
             }
+            Value::NativeFunction { .. } => write!(f, "<native fn>"),
+            //_ => todo!(),
         }
     }
 }
@@ -89,7 +119,23 @@ pub struct Intepreter {
 
 impl Intepreter {
     pub fn new() -> Self {
-        Self::default()
+        let mut env = Environment::default();
+        env.define(
+            "clock".into(),
+            Value::NativeFunction {
+                arity: 0,
+                func: |_args| {
+                    let secs = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs_f64();
+                    Ok(Value::Number(secs))
+                },
+            },
+        );
+        Intepreter {
+            environment: Rc::new(RefCell::new(env)),
+        }
     }
 
     pub fn interpret(&mut self, statements: Vec<Statement<'_>>) -> Result<(), LoxError> {
@@ -184,6 +230,15 @@ impl Intepreter {
                 Some(value) => Ok(value.clone()),
                 None => Err(LoxError::UndefinedVariable(line, name.into())),
             },
+            Expression::Call { line, callee, args } => {
+                let callee = self.evaluate_expression(*callee)?;
+                let mut arguments = Vec::new();
+                for arg in args {
+                    let value = self.evaluate_expression(arg)?;
+                    arguments.push(value);
+                }
+                callee.call(line, self, arguments)
+            }
         }
     }
 

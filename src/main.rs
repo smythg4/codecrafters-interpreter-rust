@@ -3,7 +3,6 @@ use clap::{Parser, Subcommand};
 use std::{io::Read, path::PathBuf};
 
 use codecrafters_interpreter::Intepreter;
-use codecrafters_interpreter::LoxError;
 use codecrafters_interpreter::Parser as LoxParser;
 use codecrafters_interpreter::lex_file;
 
@@ -56,10 +55,11 @@ fn main() -> Result<()> {
                 }
             };
 
-            let mut i = Intepreter::new();
-            match i.evaluate_expression(exp) {
+            let mut interpreter = Intepreter::new();
+            match interpreter.evaluate_expression(exp) {
                 Ok(val) => println!("{val}"),
                 Err(e) if e.is_runtime_error() => {
+                    // only this arm should ever trigger
                     eprintln!("{e}");
                     std::process::exit(70);
                 }
@@ -82,11 +82,12 @@ fn main() -> Result<()> {
                 }
                 std::process::exit(65);
             }
-            let mut i = Intepreter::new();
-            let val = i.interpret(statements);
+            let mut interpreter = Intepreter::new();
+            let val = interpreter.interpret(statements);
             match val {
                 Ok(_) => return Ok(()),
                 Err(e) if e.is_runtime_error() => {
+                    // only this arm should ever trigger
                     eprintln!("{e}");
                     std::process::exit(70);
                 }

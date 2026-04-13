@@ -380,7 +380,52 @@ impl<'de> Parser<'de> {
                 right: Box::new(right),
             });
         }
-        self.primary()
+        self.call()
+    }
+
+    fn call(&mut self) -> Result<Expression<'de>, LoxError> {
+        let mut expr = self.primary()?;
+
+        loop {
+            if self.match_any(&[TokenKind::LeftParen])?.is_some() {
+                expr = self.finish_call(expr)?;
+            } else {
+                break;
+            }
+        }
+
+        Ok(expr)
+    }
+
+    fn finish_call(&mut self, callee: Expression<'de>) -> Result<Expression<'de>, LoxError> {
+        let mut args = Vec::new();
+
+        if !self.check_peek(TokenKind::RightParen)? {
+            loop {
+                args.push(self.expression()?);
+                if args.len() >= 255 {
+                    // stupid...
+                    return Err(LoxError::TooManyArguments(
+                        self.lexer
+                            .peek()
+                            .cloned()
+                            .map(|t| t.map(|t| t.line))
+                            .unwrap()
+                            .unwrap(),
+                    ));
+                }
+                if self.match_any(&[TokenKind::Comma])?.is_none() {
+                    break;
+                }
+            }
+        }
+
+        let paren = self.expect(TokenKind::RightParen)?;
+        Ok(Expression::Call {
+            callee: Box::new(callee),
+            line: paren.line,
+            args,
+        })
     }
 
     fn primary(&mut self) -> Result<Expression<'de>, LoxError> {

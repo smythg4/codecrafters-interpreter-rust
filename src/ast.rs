@@ -188,6 +188,11 @@ pub enum Expression<'de> {
         value: Box<Expression<'de>>,
     },
     Grouping(Box<Expression<'de>>),
+    Call {
+        line: usize,
+        callee: Box<Expression<'de>>,
+        args: Vec<Expression<'de>>,
+    },
 }
 
 impl<'de> std::fmt::Display for Expression<'de> {
@@ -216,6 +221,16 @@ impl<'de> std::fmt::Display for Expression<'de> {
                 write!(f, "{}", name)
             }
             Expression::Grouping(exp) => write!(f, "(group {exp})"),
+            Expression::Call { callee, args, .. } => {
+                write!(
+                    f,
+                    "{callee}({})",
+                    args.iter()
+                        .map(|a| format!("{a}"))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
         }
     }
 }

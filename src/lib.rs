@@ -52,6 +52,12 @@ pub enum LoxError {
     UndefinedVariable(usize, String), // line, name
     #[error("[line {0}] Invalid assignment target.")]
     InvalidAssignment(usize), // line
+    #[error("[line {0}] Can't have more than 255 arguments.")]
+    TooManyArguments(usize), // line
+    #[error("[line {0}] Can only call functions and classes.")]
+    Uncallable(usize), // line
+    #[error("[line {0}] Expected {1} arguments but got {2}.")]
+    Arity(usize, usize, usize), // line, expected, got
 }
 
 impl LoxError {
@@ -63,6 +69,10 @@ impl LoxError {
                 | LoxError::TwoNumberOrStringOperandsRequired(_)
                 | LoxError::TwoBooleanOperandsRequired(_)
                 | LoxError::UndefinedVariable(_, _)
+                | LoxError::InvalidAssignment(_)
+                | LoxError::TooManyArguments(_)
+                | LoxError::Uncallable(_)
+                | LoxError::Arity(_, _, _)
         )
     }
 }
