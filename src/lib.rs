@@ -58,6 +58,8 @@ pub enum LoxError {
     Uncallable(usize), // line
     #[error("[line {0}] Expected {1} arguments but got {2}.")]
     Arity(usize, usize, usize), // line, expected, got
+    #[error("This is just a return value, not an actual error")]
+    Return(Value),
 }
 
 impl LoxError {

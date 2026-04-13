@@ -102,14 +102,19 @@ impl Value {
             Self::NativeFunction { func, .. } => func(&arguments),
             Self::LoxFunction { params, body, closure, .. } => {
                 let old_env = std::mem::replace(&mut interpreter.environment, Rc::new(RefCell::new(Environment::default())));
-                interpreter.environment = Rc::new(RefCell::new(Environment::from(&old_env)));
+                interpreter.environment = Rc::new(RefCell::new(Environment::from(&closure)));
                 for (param, arg) in params.iter().zip(arguments.into_iter()) {
                     interpreter.environment.borrow_mut().define(param.to_string(), arg);
                 }
 
-                interpreter.interpret(body)?;
+                let result = interpreter.interpret(body);
+                // make sure we restore the environment in the event of error propogation with `result?;`
                 interpreter.environment = old_env;
-                return Ok(Value::Nil);
+                match result {
+                    Ok(()) => Ok(Value::Nil),
+                    Err(LoxError::Return(val)) => Ok(val),
+                    Err(e) => return Err(e),
+                }
             }
             _ => Err(LoxError::Uncallable(line)),
         }
@@ -226,7 +231,13 @@ impl Intepreter {
                 let function = Value::LoxFunction { name: Rc::clone(&name), params, body, closure: Rc::clone(&self.environment) };
                 self.environment.borrow_mut().define(name.to_string(), function);
             },
-            Statement::Return(_) => todo!(),
+            Statement::Return(value) => {
+                if let Some(val) = value {
+                    return Err(LoxError::Return(self.evaluate_expression(val)?));
+                } else {
+                    return Err(LoxError::Return(Value::Nil));
+                }
+            },
         }
         Ok(())
     }

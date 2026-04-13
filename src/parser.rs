@@ -202,6 +202,10 @@ impl<'de> Parser<'de> {
                     self.advance()?;
                     self.print_statement()
                 }
+                TokenKind::Return => {
+                    self.advance()?;
+                    self.return_statement()
+                }
                 _ => self.expression_statement(),
             },
             Some(Err(e)) => Err(e.clone()),
@@ -287,6 +291,15 @@ impl<'de> Parser<'de> {
         let expr = self.expression()?;
         self.expect(TokenKind::Semicolon)?; // consume the ';'
         Ok(Statement::Print(expr))
+    }
+
+    fn return_statement(&mut self) -> Result<Statement, LoxError> {
+        let mut value = None;
+        if !self.check_peek(TokenKind::Semicolon)? {
+            value = Some(self.expression()?);
+        }
+        self.expect(TokenKind::Semicolon)?;
+        Ok(Statement::Return(value))
     }
 
     fn expression_statement(&mut self) -> Result<Statement, LoxError> {
