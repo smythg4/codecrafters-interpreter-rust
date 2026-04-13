@@ -82,15 +82,14 @@ impl From<Literal<'_>> for Value {
     }
 }
 
+#[derive(Debug, Clone, Default)]
 pub struct Intepreter {
     environment: Rc<RefCell<Environment>>,
 }
 
 impl Intepreter {
     pub fn new() -> Self {
-        Intepreter {
-            environment: Rc::new(RefCell::new(Environment::default())),
-        }
+        Self::default()
     }
 
     pub fn interpret(&mut self, statements: Vec<Statement<'_>>) -> Result<(), LoxError> {
@@ -102,7 +101,7 @@ impl Intepreter {
 
     fn execute_statement(&mut self, stmt: Statement<'_>) -> Result<(), LoxError> {
         match stmt {
-            Statement::ExpressionStatement(exp) => {
+            Statement::Expression(exp) => {
                 self.evaluate_expression(exp)?;
             }
             Statement::Print(exp) => {
@@ -134,10 +133,10 @@ impl Intepreter {
                 } else if else_branch.is_some() {
                     self.execute_statement(*else_branch.unwrap())?;
                 }
-            },
+            }
             Statement::While {
                 condition,
-                statement
+                statement,
             } => {
                 // TODO: this cloning seems silly here!
                 while Self::is_truthy(&self.evaluate_expression(condition.clone())?) {
@@ -174,7 +173,7 @@ impl Intepreter {
                 if self
                     .environment
                     .borrow_mut()
-                    .assign(name.into(), result.clone())
+                    .assign(name, result.clone())
                     .is_none()
                 {
                     return Err(LoxError::UndefinedVariable(line, name.into()));

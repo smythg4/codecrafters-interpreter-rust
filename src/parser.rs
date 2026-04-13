@@ -155,11 +155,11 @@ impl<'de> Parser<'de> {
                 TokenKind::If => {
                     self.advance()?;
                     self.if_statement()
-                },
+                }
                 TokenKind::While => {
                     self.advance()?;
                     self.while_statement()
-                },
+                }
                 TokenKind::For => {
                     self.advance()?;
                     self.for_statement()
@@ -170,8 +170,8 @@ impl<'de> Parser<'de> {
                 }
                 _ => self.expression_statement(),
             },
-            Some(Err(e)) => return Err(e.clone()),
-            None => return Err(LoxError::UnexpectedEof(self.whole.lines().count())),
+            Some(Err(e)) => Err(e.clone()),
+            None => Err(LoxError::UnexpectedEof(self.whole.lines().count())),
         }
     }
 
@@ -208,11 +208,11 @@ impl<'de> Parser<'de> {
     fn for_statement(&mut self) -> Result<Statement<'de>, LoxError> {
         // desugar the for loop into a while loop
         self.expect(TokenKind::LeftParen)?; // consume the '('
-        let mut initializer= None;
-        if self.match_any(&[TokenKind::Var])?.is_some() {
-            initializer = Some(self.var_declaration()?);
-        } else if self.check_peek(TokenKind::Semicolon)? {
+        let mut initializer = None;
+        if self.check_peek(TokenKind::Semicolon)? {
             self.advance()?; // consume the ';', no initializer
+        } else if self.match_any(&[TokenKind::Var])?.is_some() {
+            initializer = Some(self.var_declaration()?);
         } else {
             initializer = Some(self.expression_statement()?);
         }
@@ -232,12 +232,15 @@ impl<'de> Parser<'de> {
         let mut body = self.statement()?;
 
         if let Some(increment) = increment {
-            body = Statement::Block(vec![body, Statement::ExpressionStatement(increment)]);
+            body = Statement::Block(vec![body, Statement::Expression(increment)]);
         }
 
         let condition = condition.unwrap_or(Expression::Literal(Literal::Boolean(true)));
 
-        body = Statement::While { condition, statement: Box::new(body) };
+        body = Statement::While {
+            condition,
+            statement: Box::new(body),
+        };
 
         if let Some(initializer) = initializer {
             body = Statement::Block(vec![initializer, body]);
@@ -255,7 +258,7 @@ impl<'de> Parser<'de> {
     fn expression_statement(&mut self) -> Result<Statement<'de>, LoxError> {
         let expr = self.expression()?;
         self.expect(TokenKind::Semicolon)?; // consume the ';'
-        Ok(Statement::ExpressionStatement(expr))
+        Ok(Statement::Expression(expr))
     }
 
     pub fn expression(&mut self) -> Result<Expression<'de>, LoxError> {

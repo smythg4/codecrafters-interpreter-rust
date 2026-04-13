@@ -3,7 +3,7 @@ use crate::token::{Token, TokenKind};
 
 #[derive(Debug, Clone)]
 pub enum Statement<'de> {
-    ExpressionStatement(Expression<'de>),
+    Expression(Expression<'de>),
     Print(Expression<'de>),
     Var {
         name: &'de str,
