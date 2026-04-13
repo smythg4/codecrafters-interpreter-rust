@@ -50,7 +50,7 @@ impl Environment {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Value {
     Boolean(bool),
     Number(f64),
@@ -60,18 +60,37 @@ pub enum Value {
         arity: usize,
         func: fn(&[Value]) -> Result<Value, LoxError>,
     },
+  LoxFunction {
+      name: Rc<str>,
+      params: Vec<Rc<str>>,
+      body: Vec<Statement>,
+      closure: Rc<RefCell<Environment>>,
+  }
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Value::Boolean(b1), Value::Boolean(b2)) => b1 == b2,
+            (Value::Number(n1), Value::Number(n2)) => n1 == n2,
+            (Value::String(s1), Value::String(s2)) => s1 == s2,
+            (Value::Nil, Value::Nil) => true,
+            _ => false,
+        }
+    }
 }
 
 impl Value {
     pub fn arity(&self) -> usize {
         match self {
             Self::NativeFunction { arity, .. } => *arity,
+            Self::LoxFunction { params, .. } => params.len(),
             _ => unimplemented!(),
         }
     }
 
     pub fn call(
-        &self,
+        self,
         line: usize,
         interpreter: &mut Intepreter,
         arguments: Vec<Value>,
@@ -81,6 +100,17 @@ impl Value {
         }
         match self {
             Self::NativeFunction { func, .. } => func(&arguments),
+            Self::LoxFunction { params, body, closure, .. } => {
+                let old_env = std::mem::replace(&mut interpreter.environment, Rc::new(RefCell::new(Environment::default())));
+                interpreter.environment = Rc::new(RefCell::new(Environment::from(&old_env)));
+                for (param, arg) in params.iter().zip(arguments.into_iter()) {
+                    interpreter.environment.borrow_mut().define(param.to_string(), arg);
+                }
+
+                interpreter.interpret(body)?;
+                interpreter.environment = old_env;
+                return Ok(Value::Nil);
+            }
             _ => Err(LoxError::Uncallable(line)),
         }
     }
@@ -96,12 +126,15 @@ impl std::fmt::Display for Value {
                 write!(f, "{n}")
             }
             Value::NativeFunction { .. } => write!(f, "<native fn>"),
+            Value::LoxFunction { name, .. } => {
+                write!(f, "<fn {name}>")
+            },
             //_ => todo!(),
         }
     }
 }
 
-impl From<Literal<'_>> for Value {
+impl From<Literal> for Value {
     fn from(value: Literal) -> Self {
         match value {
             Literal::Boolean(b) => Value::Boolean(b),
@@ -138,14 +171,14 @@ impl Intepreter {
         }
     }
 
-    pub fn interpret(&mut self, statements: Vec<Statement<'_>>) -> Result<(), LoxError> {
+    pub fn interpret(&mut self, statements: Vec<Statement>) -> Result<(), LoxError> {
         for statement in statements {
             self.execute_statement(statement)?;
         }
         Ok(())
     }
 
-    fn execute_statement(&mut self, stmt: Statement<'_>) -> Result<(), LoxError> {
+    fn execute_statement(&mut self, stmt: Statement) -> Result<(), LoxError> {
         match stmt {
             Statement::Expression(exp) => {
                 self.evaluate_expression(exp)?;
@@ -158,7 +191,7 @@ impl Intepreter {
                     None => Value::Nil,
                     Some(v) => self.evaluate_expression(v)?,
                 };
-                self.environment.borrow_mut().define(name.into(), value);
+                self.environment.borrow_mut().define(name.to_string(), value);
             }
             Statement::Block(statements) => {
                 self.environment = Rc::new(RefCell::new(Environment::from(&self.environment)));
@@ -188,7 +221,12 @@ impl Intepreter {
                 while Self::is_truthy(&self.evaluate_expression(condition.clone())?) {
                     self.execute_statement(*statement.clone())?;
                 }
-            }
+            },
+            Statement::Function { name, params, body } => {
+                let function = Value::LoxFunction { name: Rc::clone(&name), params, body, closure: Rc::clone(&self.environment) };
+                self.environment.borrow_mut().define(name.to_string(), function);
+            },
+            Statement::Return(_) => todo!(),
         }
         Ok(())
     }
@@ -199,7 +237,7 @@ impl Intepreter {
         Ok(())
     }
 
-    pub fn evaluate_expression(&mut self, expr: Expression<'_>) -> Result<Value, LoxError> {
+    pub fn evaluate_expression(&mut self, expr: Expression) -> Result<Value, LoxError> {
         match expr {
             Expression::Literal(l) => Ok(Value::from(l)),
             Expression::Unary { operator, right } => self.eval_unary(operator, *right),
@@ -219,16 +257,16 @@ impl Intepreter {
                 if self
                     .environment
                     .borrow_mut()
-                    .assign(name, result.clone())
+                    .assign(name.as_ref(), result.clone())
                     .is_none()
                 {
-                    return Err(LoxError::UndefinedVariable(line, name.into()));
+                    return Err(LoxError::UndefinedVariable(line, name.to_string()));
                 }
                 Ok(result)
             }
-            Expression::Variable(line, name) => match self.environment.borrow().get(name) {
+            Expression::Variable(line, name) => match self.environment.borrow().get(name.as_ref()) {
                 Some(value) => Ok(value.clone()),
-                None => Err(LoxError::UndefinedVariable(line, name.into())),
+                None => Err(LoxError::UndefinedVariable(line, name.to_string())),
             },
             Expression::Call { line, callee, args } => {
                 let callee = self.evaluate_expression(*callee)?;
@@ -245,7 +283,7 @@ impl Intepreter {
     fn eval_unary(
         &mut self,
         operator: UnaryOperator,
-        right: Expression<'_>,
+        right: Expression,
     ) -> Result<Value, LoxError> {
         let right = self.evaluate_expression(right)?;
         match (operator, right) {
@@ -266,8 +304,8 @@ impl Intepreter {
     fn eval_binary(
         &mut self,
         operator: BinaryOperator,
-        left: Expression<'_>,
-        right: Expression<'_>,
+        left: Expression,
+        right: Expression,
     ) -> Result<Value, LoxError> {
         let left = self.evaluate_expression(left)?;
         let right = self.evaluate_expression(right)?;
@@ -324,8 +362,8 @@ impl Intepreter {
     fn eval_logical(
         &mut self,
         operator: BinaryOperator,
-        left: Expression<'_>,
-        right: Expression<'_>,
+        left: Expression,
+        right: Expression,
     ) -> Result<Value, LoxError> {
         let left = self.evaluate_expression(left)?;
         if matches!(operator, BinaryOperator::Or(_)) {
@@ -348,7 +386,7 @@ impl Intepreter {
             (Value::Boolean(x), Value::Boolean(y)) => Ok(x == y),
             (left, right) => Ok(left == right),
             // I think a TypeMismatch is appropriate here, but the tests want 65.0 == "65" to return Ok(`false`)
-            //(left, right)=> Err(LoxError::TypeMismatch(left, right)),
+            //(left, right)=> Err(LoxError::TypeMismatch(0, left, right)),
         }
     }
 }

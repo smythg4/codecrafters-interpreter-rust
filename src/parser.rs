@@ -3,6 +3,12 @@ use crate::ast::{BinaryOperator, Expression, Literal, Statement, UnaryOperator};
 use crate::lexer::Lexer;
 use crate::token::{Token, TokenKind};
 use std::iter::Peekable;
+use std::rc::Rc;
+
+    enum FunctionKind {
+        Function,
+        Method,
+    }
 
 pub struct Parser<'de> {
     whole: &'de str,
@@ -53,7 +59,7 @@ impl<'de> Parser<'de> {
         }
     }
 
-    pub fn parse_program(&mut self) -> (Vec<Statement<'de>>, Vec<LoxError>) {
+    pub fn parse_program(&mut self) -> (Vec<Statement>, Vec<LoxError>) {
         let mut stmts = Vec::new();
         let mut errs = Vec::new();
         loop {
@@ -104,7 +110,7 @@ impl<'de> Parser<'de> {
         }
     }
 
-    fn block(&mut self) -> Result<Vec<Statement<'de>>, LoxError> {
+    fn block(&mut self) -> Result<Vec<Statement>, LoxError> {
         let mut statements = Vec::new();
 
         while !self.check_peek(TokenKind::RightBrace)? {
@@ -118,14 +124,17 @@ impl<'de> Parser<'de> {
         Ok(statements)
     }
 
-    fn declaration(&mut self) -> Result<Statement<'de>, LoxError> {
+    fn declaration(&mut self) -> Result<Statement, LoxError> {
         if self.match_any(&[TokenKind::Var])?.is_some() {
             return self.var_declaration();
+        }
+        if self.match_any(&[TokenKind::Fun])?.is_some() {
+            return self.function(FunctionKind::Function);
         }
         self.statement()
     }
 
-    fn var_declaration(&mut self) -> Result<Statement<'de>, LoxError> {
+    fn var_declaration(&mut self) -> Result<Statement, LoxError> {
         let name = self.expect(TokenKind::Ident)?.origin;
         let mut initializer = None;
         if self.match_any(&[TokenKind::Equal])?.is_some() {
@@ -134,10 +143,35 @@ impl<'de> Parser<'de> {
             initializer = Some(self.expression()?);
         }
         self.expect(TokenKind::Semicolon)?;
-        Ok(Statement::Var { name, initializer })
+        Ok(Statement::Var { name: Rc::from(name), initializer })
     }
 
-    fn statement(&mut self) -> Result<Statement<'de>, LoxError> {
+    fn function(&mut self, kind: FunctionKind) -> Result<Statement, LoxError> {
+        let name_token = self.expect(TokenKind::Ident)?;
+        let name = name_token.origin;
+        let line = name_token.line;
+        self.expect(TokenKind::LeftParen)?;
+        let mut params = Vec::new();
+        if !self.check_peek(TokenKind::RightParen)? {
+            loop {
+                if params.len() >= 255 {
+                    return Err(LoxError::TooManyArguments(line));
+                }
+
+                let p = self.expect(TokenKind::Ident)?;
+                params.push(p);
+                                if self.match_any(&[TokenKind::Comma])?.is_none() {
+                    break;
+                }
+            }
+        }
+        self.expect(TokenKind::RightParen)?;
+        self.expect(TokenKind::LeftBrace)?;
+        let body = self.block()?;
+        Ok(Statement::Function{ name: Rc::from(name), params: params.iter().map(|p| Rc::from(p.origin)).collect(), body })
+    }
+
+    fn statement(&mut self) -> Result<Statement, LoxError> {
         // if self.match_any(&[TokenKind::LeftBrace])?.is_some() {
         //     return Ok(Statement::Block(self.block()?));
         // }
@@ -175,7 +209,7 @@ impl<'de> Parser<'de> {
         }
     }
 
-    fn if_statement(&mut self) -> Result<Statement<'de>, LoxError> {
+    fn if_statement(&mut self) -> Result<Statement, LoxError> {
         self.expect(TokenKind::LeftParen)?; // consume the '('
         let condition = self.expression()?;
         self.expect(TokenKind::RightParen)?; // consume the ')'
@@ -192,7 +226,7 @@ impl<'de> Parser<'de> {
         })
     }
 
-    fn while_statement(&mut self) -> Result<Statement<'de>, LoxError> {
+    fn while_statement(&mut self) -> Result<Statement, LoxError> {
         self.expect(TokenKind::LeftParen)?; // consume the '('
         let condition = self.expression()?;
         self.expect(TokenKind::RightParen)?; // consume the ')'
@@ -205,7 +239,7 @@ impl<'de> Parser<'de> {
         })
     }
 
-    fn for_statement(&mut self) -> Result<Statement<'de>, LoxError> {
+    fn for_statement(&mut self) -> Result<Statement, LoxError> {
         // desugar the for loop into a while loop
         self.expect(TokenKind::LeftParen)?; // consume the '('
         let mut initializer = None;
@@ -249,23 +283,23 @@ impl<'de> Parser<'de> {
         Ok(body)
     }
 
-    fn print_statement(&mut self) -> Result<Statement<'de>, LoxError> {
+    fn print_statement(&mut self) -> Result<Statement, LoxError> {
         let expr = self.expression()?;
         self.expect(TokenKind::Semicolon)?; // consume the ';'
         Ok(Statement::Print(expr))
     }
 
-    fn expression_statement(&mut self) -> Result<Statement<'de>, LoxError> {
+    fn expression_statement(&mut self) -> Result<Statement, LoxError> {
         let expr = self.expression()?;
         self.expect(TokenKind::Semicolon)?; // consume the ';'
         Ok(Statement::Expression(expr))
     }
 
-    pub fn expression(&mut self) -> Result<Expression<'de>, LoxError> {
+    pub fn expression(&mut self) -> Result<Expression, LoxError> {
         self.assignment()
     }
 
-    fn assignment(&mut self) -> Result<Expression<'de>, LoxError> {
+    fn assignment(&mut self) -> Result<Expression, LoxError> {
         let expr = self.or()?;
 
         if let Some(op) = self.match_any(&[TokenKind::Equal])? {
@@ -286,7 +320,7 @@ impl<'de> Parser<'de> {
         Ok(expr)
     }
 
-    fn or(&mut self) -> Result<Expression<'de>, LoxError> {
+    fn or(&mut self) -> Result<Expression, LoxError> {
         let mut expr = self.and()?;
 
         while let Some(op_token) = self.match_any(&[TokenKind::Or])? {
@@ -302,7 +336,7 @@ impl<'de> Parser<'de> {
         Ok(expr)
     }
 
-    fn and(&mut self) -> Result<Expression<'de>, LoxError> {
+    fn and(&mut self) -> Result<Expression, LoxError> {
         let mut expr = self.equality()?;
 
         while let Some(op_token) = self.match_any(&[TokenKind::And])? {
@@ -318,7 +352,7 @@ impl<'de> Parser<'de> {
         Ok(expr)
     }
 
-    fn equality(&mut self) -> Result<Expression<'de>, LoxError> {
+    fn equality(&mut self) -> Result<Expression, LoxError> {
         self.parse_binary_op(&[TokenKind::EqualEqual, TokenKind::BangEqual], |parser| {
             parser.comparison()
         })
@@ -328,9 +362,9 @@ impl<'de> Parser<'de> {
         &mut self,
         operators: &[TokenKind],
         mut parse_next_level: F,
-    ) -> Result<Expression<'de>, LoxError>
+    ) -> Result<Expression, LoxError>
     where
-        F: FnMut(&mut Self) -> Result<Expression<'de>, LoxError>,
+        F: FnMut(&mut Self) -> Result<Expression, LoxError>,
     {
         let mut expr = parse_next_level(self)?;
 
@@ -347,7 +381,7 @@ impl<'de> Parser<'de> {
         Ok(expr)
     }
 
-    fn comparison(&mut self) -> Result<Expression<'de>, LoxError> {
+    fn comparison(&mut self) -> Result<Expression, LoxError> {
         self.parse_binary_op(
             &[
                 TokenKind::Greater,
@@ -359,19 +393,19 @@ impl<'de> Parser<'de> {
         )
     }
 
-    fn term(&mut self) -> Result<Expression<'de>, LoxError> {
+    fn term(&mut self) -> Result<Expression, LoxError> {
         self.parse_binary_op(&[TokenKind::Minus, TokenKind::Plus], |parser| {
             parser.factor()
         })
     }
 
-    fn factor(&mut self) -> Result<Expression<'de>, LoxError> {
+    fn factor(&mut self) -> Result<Expression, LoxError> {
         self.parse_binary_op(&[TokenKind::Star, TokenKind::Slash], |parser| {
             parser.unary()
         })
     }
 
-    fn unary(&mut self) -> Result<Expression<'de>, LoxError> {
+    fn unary(&mut self) -> Result<Expression, LoxError> {
         if let Some(op_token) = self.match_any(&[TokenKind::Bang, TokenKind::Minus])? {
             let operator = UnaryOperator::try_from(op_token)?;
             let right = self.unary()?;
@@ -383,7 +417,7 @@ impl<'de> Parser<'de> {
         self.call()
     }
 
-    fn call(&mut self) -> Result<Expression<'de>, LoxError> {
+    fn call(&mut self) -> Result<Expression, LoxError> {
         let mut expr = self.primary()?;
 
         loop {
@@ -397,7 +431,7 @@ impl<'de> Parser<'de> {
         Ok(expr)
     }
 
-    fn finish_call(&mut self, callee: Expression<'de>) -> Result<Expression<'de>, LoxError> {
+    fn finish_call(&mut self, callee: Expression) -> Result<Expression, LoxError> {
         let mut args = Vec::new();
 
         if !self.check_peek(TokenKind::RightParen)? {
@@ -428,7 +462,7 @@ impl<'de> Parser<'de> {
         })
     }
 
-    fn primary(&mut self) -> Result<Expression<'de>, LoxError> {
+    fn primary(&mut self) -> Result<Expression, LoxError> {
         let token = self.advance()?;
 
         if let Ok(literal) = Literal::try_from(token) {
@@ -436,7 +470,7 @@ impl<'de> Parser<'de> {
         }
 
         if token.kind == TokenKind::Ident {
-            return Ok(Expression::Variable(token.line, token.origin));
+            return Ok(Expression::Variable(token.line, Rc::from(token.origin)));
         }
 
         if token.kind == TokenKind::LeftParen {

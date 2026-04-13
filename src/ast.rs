@@ -1,35 +1,42 @@
 use crate::LoxError;
 use crate::token::{Token, TokenKind};
+use std::rc::Rc;
 
-#[derive(Debug, Clone)]
-pub enum Statement<'de> {
-    Expression(Expression<'de>),
-    Print(Expression<'de>),
+#[derive(Debug, Clone, PartialEq)]
+pub enum Statement {
+    Expression(Expression),
+    Print(Expression),
     Var {
-        name: &'de str,
-        initializer: Option<Expression<'de>>,
+        name: Rc<str>,
+        initializer: Option<Expression>,
     },
-    Block(Vec<Statement<'de>>),
+    Block(Vec<Statement>),
     If {
-        condition: Expression<'de>,
-        then_branch: Box<Statement<'de>>,
-        else_branch: Option<Box<Statement<'de>>>,
+        condition: Expression,
+        then_branch: Box<Statement>,
+        else_branch: Option<Box<Statement>>,
     },
     While {
-        condition: Expression<'de>,
-        statement: Box<Statement<'de>>,
+        condition: Expression,
+        statement: Box<Statement>,
     },
+    Function {
+        name: Rc<str>,
+        params: Vec<Rc<str>>,
+        body: Vec<Statement>,
+    },
+    Return(Option<Expression>),
 }
 
-#[derive(Debug, Clone)]
-pub enum Literal<'de> {
+#[derive(Debug, Clone, PartialEq)]
+pub enum Literal {
     Boolean(bool),
     Number(f64),
-    String(&'de str),
+    String(Rc<str>),
     Nil,
 }
 
-impl<'de> std::fmt::Display for Literal<'de> {
+impl std::fmt::Display for Literal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Literal::Boolean(b) => write!(f, "{b}"),
@@ -46,16 +53,16 @@ impl<'de> std::fmt::Display for Literal<'de> {
     }
 }
 
-impl<'de> TryFrom<Token<'de>> for Literal<'de> {
+impl TryFrom<Token<'_>> for Literal {
     type Error = LoxError;
-    fn try_from(value: Token<'de>) -> Result<Self, Self::Error> {
+    fn try_from(value: Token<'_>) -> Result<Self, Self::Error> {
         Ok(match value.kind {
             TokenKind::True => Literal::Boolean(true),
             TokenKind::False => Literal::Boolean(false),
             TokenKind::Number(n) => Literal::Number(n),
             TokenKind::String => {
                 //let msg = Token::unescape(value.origin); // Cow -> &str wasn't behaving
-                Literal::String(value.origin.trim_matches('"'))
+                Literal::String(Rc::from(value.origin.trim_matches('"')))
             }
             TokenKind::Nil => Literal::Nil,
             _ => return Err(LoxError::LiteralInvalidToken(value.line, value.kind)), // calculate line count
@@ -63,7 +70,7 @@ impl<'de> TryFrom<Token<'de>> for Literal<'de> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UnaryOperator {
     Minus(usize),
     Not(usize),
@@ -89,7 +96,7 @@ impl TryFrom<Token<'_>> for UnaryOperator {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BinaryOperator {
     Add(usize),
     Minus(usize),
@@ -164,38 +171,38 @@ impl TryFrom<Token<'_>> for BinaryOperator {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum Expression<'de> {
-    Literal(Literal<'de>),
+#[derive(Debug, Clone, PartialEq)]
+pub enum Expression {
+    Literal(Literal),
     Unary {
         operator: UnaryOperator,
-        right: Box<Expression<'de>>,
+        right: Box<Expression>,
     },
     Binary {
-        left: Box<Expression<'de>>,
+        left: Box<Expression>,
         operator: BinaryOperator,
-        right: Box<Expression<'de>>,
+        right: Box<Expression>,
     },
     Logical {
-        left: Box<Expression<'de>>,
+        left: Box<Expression>,
         operator: BinaryOperator,
-        right: Box<Expression<'de>>,
+        right: Box<Expression>,
     },
-    Variable(usize, &'de str), // line, name
+    Variable(usize, Rc<str>), // line, name
     Assign {
         line: usize,
-        name: &'de str,
-        value: Box<Expression<'de>>,
+        name: Rc<str>,
+        value: Box<Expression>,
     },
-    Grouping(Box<Expression<'de>>),
+    Grouping(Box<Expression>),
     Call {
         line: usize,
-        callee: Box<Expression<'de>>,
-        args: Vec<Expression<'de>>,
+        callee: Box<Expression>,
+        args: Vec<Expression>,
     },
 }
 
-impl<'de> std::fmt::Display for Expression<'de> {
+impl std::fmt::Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Expression::Literal(lit) => write!(f, "{lit}"),
