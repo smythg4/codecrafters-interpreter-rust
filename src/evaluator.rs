@@ -130,8 +130,8 @@ impl Intepreter {
             } => {
                 if Self::is_truthy(&self.evaluate_expression(condition)?) {
                     self.execute_statement(*then_branch)?;
-                } else if else_branch.is_some() {
-                    self.execute_statement(*else_branch.unwrap())?;
+                } else if let Some(branch) = else_branch {
+                    self.execute_statement(*branch)?;
                 }
             }
             Statement::While {

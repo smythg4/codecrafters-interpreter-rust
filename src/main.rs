@@ -59,16 +59,7 @@ fn main() -> Result<()> {
             let mut i = Intepreter::new();
             match i.evaluate_expression(exp) {
                 Ok(val) => println!("{val}"),
-                Err(e)
-                    if matches!(
-                        e,
-                        LoxError::NumberOperandRequired(_)
-                            | LoxError::TwoNumberOperandsRequired(_)
-                            | LoxError::TwoNumberOrStringOperandsRequired(_)
-                            | LoxError::TwoBooleanOperandsRequired(_)
-                            | LoxError::UndefinedVariable(_, _)
-                    ) =>
-                {
+                Err(e) if e.is_runtime_error() => {
                     eprintln!("{e}");
                     std::process::exit(70);
                 }
@@ -95,16 +86,7 @@ fn main() -> Result<()> {
             let val = i.interpret(statements);
             match val {
                 Ok(_) => return Ok(()),
-                Err(e)
-                    if matches!(
-                        e,
-                        LoxError::NumberOperandRequired(_)
-                            | LoxError::TwoNumberOperandsRequired(_)
-                            | LoxError::TwoNumberOrStringOperandsRequired(_)
-                            | LoxError::TwoBooleanOperandsRequired(_)
-                            | LoxError::UndefinedVariable(_, _)
-                    ) =>
-                {
+                Err(e) if e.is_runtime_error() => {
                     eprintln!("{e}");
                     std::process::exit(70);
                 }

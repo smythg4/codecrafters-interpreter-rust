@@ -5,7 +5,6 @@ pub struct Lexer<'de> {
     whole: &'de str,
     rest: &'de str,
     byte_index: usize,
-    peeked: Option<Result<Token<'de>, LoxError>>,
 }
 
 impl<'de> Lexer<'de> {
@@ -14,7 +13,6 @@ impl<'de> Lexer<'de> {
             whole: input,
             rest: input,
             byte_index: 0,
-            peeked: None,
         }
     }
 }
@@ -23,10 +21,6 @@ impl<'de> Iterator for Lexer<'de> {
     type Item = Result<Token<'de>, LoxError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(next) = self.peeked.take() {
-            return Some(next);
-        }
-
         loop {
             let mut chars = self.rest.chars();
 
@@ -191,9 +185,6 @@ impl<'de> Iterator for Lexer<'de> {
                     }));
                 }
                 Started::IfEqualElse(yes, no) => {
-                    //self.rest = self.rest.trim_start();
-                    //let trimmed = c_onwards.len() - self.rest.len() - 1;
-                    //self.byte_index += trimmed;
                     if self.rest.starts_with('=') {
                         //let span = &c_onwards[..c.len_utf8() + trimmed + 1];
                         let span = &c_onwards[..c.len_utf8() + 1];

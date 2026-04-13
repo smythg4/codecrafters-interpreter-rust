@@ -95,7 +95,6 @@ pub enum BinaryOperator {
     Minus(usize),
     Times(usize),
     Divide(usize),
-    Assign(usize),
     Equal(usize),
     NotEqual(usize),
     GreaterThan(usize),
@@ -113,7 +112,6 @@ impl BinaryOperator {
             BinaryOperator::Minus(line) => *line,
             BinaryOperator::Times(line) => *line,
             BinaryOperator::Divide(line) => *line,
-            BinaryOperator::Assign(line) => *line,
             BinaryOperator::Equal(line) => *line,
             BinaryOperator::NotEqual(line) => *line,
             BinaryOperator::GreaterThan(line) => *line,
@@ -133,7 +131,6 @@ impl std::fmt::Display for BinaryOperator {
             BinaryOperator::Minus(_) => write!(f, "-"),
             BinaryOperator::Times(_) => write!(f, "*"),
             BinaryOperator::Divide(_) => write!(f, "/"),
-            BinaryOperator::Assign(_) => write!(f, "="),
             BinaryOperator::NotEqual(_) => write!(f, "!="),
             BinaryOperator::GreaterThan(_) => write!(f, ">"),
             BinaryOperator::GreaterEqual(_) => write!(f, ">="),
@@ -154,7 +151,6 @@ impl TryFrom<Token<'_>> for BinaryOperator {
             TokenKind::Minus => BinaryOperator::Minus(value.line),
             TokenKind::Star => BinaryOperator::Times(value.line),
             TokenKind::Slash => BinaryOperator::Divide(value.line),
-            TokenKind::Equal => BinaryOperator::Assign(value.line),
             TokenKind::EqualEqual => BinaryOperator::Equal(value.line),
             TokenKind::BangEqual => BinaryOperator::NotEqual(value.line),
             TokenKind::Greater => BinaryOperator::GreaterThan(value.line),
@@ -216,7 +212,7 @@ impl<'de> std::fmt::Display for Expression<'de> {
             Expression::Assign { name, value, .. } => {
                 write!(f, "{} = {}", name, value)
             }
-            Expression::Variable(name, ..) => {
+            Expression::Variable(_line, name, ..) => {
                 write!(f, "{}", name)
             }
             Expression::Grouping(exp) => write!(f, "(group {exp})"),

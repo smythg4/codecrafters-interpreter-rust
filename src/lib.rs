@@ -54,6 +54,19 @@ pub enum LoxError {
     InvalidAssignment(usize), // line
 }
 
+impl LoxError {
+    pub fn is_runtime_error(&self) -> bool {
+        matches!(
+            self,
+            LoxError::NumberOperandRequired(_)
+                | LoxError::TwoNumberOperandsRequired(_)
+                | LoxError::TwoNumberOrStringOperandsRequired(_)
+                | LoxError::TwoBooleanOperandsRequired(_)
+                | LoxError::UndefinedVariable(_, _)
+        )
+    }
+}
+
 pub fn lex_file(path: PathBuf) -> Result<()> {
     let mut f = File::open(path)?;
     let mut source_code = String::new();
