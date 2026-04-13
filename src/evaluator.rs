@@ -95,12 +95,19 @@ impl Value {
         interpreter: &mut Intepreter,
         arguments: Vec<Value>,
     ) -> Result<Value, LoxError> {
-        if arguments.len() != self.arity() {
-            return Err(LoxError::Arity(line, self.arity(), arguments.len()));
-        }
+
         match self {
-            Self::NativeFunction { func, .. } => func(&arguments),
+            Self::NativeFunction { func, .. } => {
+                if arguments.len() != self.arity() {
+                    return Err(LoxError::Arity(line, self.arity(), arguments.len()));
+                }
+                func(&arguments)
+            },
             Self::LoxFunction { params, body, closure, .. } => {
+                if arguments.len() != params.len() {
+                    // silly arity check here to get around move semantics
+                    return Err(LoxError::Arity(line, params.len(), arguments.len()));
+                }
                 let old_env = std::mem::replace(&mut interpreter.environment, Rc::new(RefCell::new(Environment::default())));
                 interpreter.environment = Rc::new(RefCell::new(Environment::from(&closure)));
                 for (param, arg) in params.iter().zip(arguments.into_iter()) {
