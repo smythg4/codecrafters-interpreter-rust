@@ -30,78 +30,126 @@ impl Resolver {
         self.interpreter
     }
 
-    pub fn resolve_statements(&mut self, statements: &[Statement]) -> Result<(), LoxError> {
+    pub fn resolve_statements(&mut self, statements: &[Statement]) -> Vec<LoxError> {
+        let mut errors = Vec::new();
         for statement in statements {
-            self.resolve_statement(statement)?;
+            let errs = self.resolve_statement(statement);
+            errors.extend_from_slice(&errs);
         }
-        Ok(())
+        errors
     }
 
-    fn resolve_statement(&mut self, statement: &Statement) -> Result<(), LoxError> {
+    fn resolve_statement(&mut self, statement: &Statement) -> Vec<LoxError> {
+        let mut errors = Vec::new();
         match statement {
             Statement::Block(stmts) => {
                 self.begin_scope();
-                self.resolve_statements(stmts)?;
+                let mut errs = self.resolve_statements(stmts);
+                if let Some(e) = errs.pop() {
+                    errors.push(e);
+                }
                 self.end_scope();
             }
+            Statement::Class { name, methods } => {
+                if let Err(e) = self.declare(name) {
+                    errors.push(e);
+                }
+                self.define(name);
+            }
             Statement::Var { name, initializer } => {
-                self.declare(name)?;
-                if let Some(init) = initializer {
-                    self.resolve_expression(init)?;
+                if let Err(e) = self.declare(name) {
+                    errors.push(e);
+                }
+                if let Some(init) = initializer
+                    && let Err(e) = self.resolve_expression(init)
+                {
+                    errors.push(e);
                 }
                 self.define(name);
             }
             Statement::Function { name, params, body } => {
-                self.declare(name)?;
+                if let Err(e) = self.declare(name) {
+                    errors.push(e);
+                }
                 self.define(name);
 
-                self.resolve_function(params, body, FunctionType::Function)?;
+                let errs = self.resolve_function(params, body, FunctionType::Function);
+                errors.extend_from_slice(&errs);
             }
             Statement::If {
                 condition,
                 then_branch,
                 else_branch,
             } => {
-                self.resolve_expression(condition)?;
-                self.resolve_statement(then_branch)?;
+                if let Err(e) = self.resolve_expression(condition) {
+                    errors.push(e);
+                }
+                let errs = self.resolve_statement(then_branch);
+                errors.extend_from_slice(&errs);
+
                 if let Some(else_branch) = else_branch {
-                    self.resolve_statement(else_branch)?;
+                    let errs = self.resolve_statement(else_branch);
+                    errors.extend_from_slice(&errs);
                 }
             }
-            Statement::Print(expression) => self.resolve_expression(expression)?,
-            Statement::Expression(expression) => self.resolve_expression(expression)?,
+            Statement::Print(expression) => {
+                if let Err(e) = self.resolve_expression(expression) {
+                    errors.push(e);
+                }
+            }
+            Statement::Expression(expression) => {
+                if let Err(e) = self.resolve_expression(expression) {
+                    errors.push(e);
+                }
+            }
             Statement::Return(expression) => {
                 if self.current_function == FunctionType::None {
-                    return Err(LoxError::TopLevelReturn(0));
+                    errors.push(LoxError::TopLevelReturn(0));
                 }
                 if let Some(expression) = expression {
-                    self.resolve_expression(expression)?;
+                    if let Err(e) = self.resolve_expression(expression) {
+                        errors.push(e);
+                    }
                 }
             }
             Statement::While {
                 condition,
                 statement,
             } => {
-                self.resolve_expression(condition)?;
-                self.resolve_statement(statement)?;
+                if let Err(e) = self.resolve_expression(condition) {
+                    errors.push(e);
+                }
+                let errs = self.resolve_statement(statement);
+                errors.extend_from_slice(&errs);
             }
         }
-        Ok(())
+        errors
     }
 
-    fn resolve_function(&mut self, params: &Vec<Rc<str>>, body: &[Statement], f_type: FunctionType) -> Result<(), LoxError> {
+    fn resolve_function(
+        &mut self,
+        params: &[Rc<str>],
+        body: &[Statement],
+        f_type: FunctionType,
+    ) -> Vec<LoxError> {
+        let mut errors = Vec::new();
         let enclosing_function = self.current_function;
         self.current_function = f_type;
 
         self.begin_scope();
         for param in params {
-            self.declare(param)?;
+            if let Err(e) = self.declare(param) {
+                errors.push(e);
+            }
             self.define(param);
         }
-        self.resolve_statements(body)?;
+        let errs = self.resolve_statements(body);
+        for e in errs {
+            errors.push(e);
+        }
         self.end_scope();
         self.current_function = enclosing_function;
-        Ok(())
+        errors
     }
 
     fn resolve_expression(&mut self, expression: &Expression) -> Result<(), LoxError> {

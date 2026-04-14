@@ -133,11 +133,13 @@ impl<'de> Parser<'de> {
     }
 
     fn declaration(&mut self) -> Result<Statement, LoxError> {
-        if self.match_any(&[TokenKind::Var])?.is_some() {
-            return self.var_declaration();
-        }
-        if self.match_any(&[TokenKind::Fun])?.is_some() {
-            return self.function(FunctionKind::Function);
+        if let Some(op) = self.match_any(&[TokenKind::Var, TokenKind::Fun, TokenKind::Class])? {
+            match op.kind {
+                TokenKind::Var => return self.var_declaration(),
+                TokenKind::Fun => return self.function_declaration(FunctionKind::Function),
+                TokenKind::Class => return self.class_declaration(),
+                _ => unreachable!(),
+            }
         }
         self.statement()
     }
@@ -157,7 +159,7 @@ impl<'de> Parser<'de> {
         })
     }
 
-    fn function(&mut self, kind: FunctionKind) -> Result<Statement, LoxError> {
+    fn function_declaration(&mut self, kind: FunctionKind) -> Result<Statement, LoxError> {
         let name_token = self.expect(TokenKind::Ident)?;
         let name = name_token.origin;
         let line = name_token.line;
@@ -184,6 +186,22 @@ impl<'de> Parser<'de> {
             params: params.iter().map(|p| Rc::from(p.origin)).collect(),
             body,
         })
+    }
+
+    fn class_declaration(&mut self) -> Result<Statement, LoxError> {
+        let name = self.expect(TokenKind::Ident)?.origin;
+        self.expect(TokenKind::LeftBrace)?; // consume the '{'
+
+        let mut methods = Vec::new();
+
+        while !self.check_peek(TokenKind::RightBrace)? {
+            let func = self.function_declaration(FunctionKind::Method)?;
+            methods.push(func);
+        }
+
+        self.expect(TokenKind::RightBrace)?;
+        
+        Ok(Statement::Class {name: Rc::from(name), methods })
     }
 
     fn statement(&mut self) -> Result<Statement, LoxError> {

@@ -26,6 +26,10 @@ pub enum Statement {
         body: Vec<Statement>,
     },
     Return(Option<Expression>),
+    Class {
+        name: Rc<str>,
+        methods: Vec<Statement>,
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

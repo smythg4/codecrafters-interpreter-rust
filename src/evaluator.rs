@@ -64,11 +64,6 @@ impl Environment {
             self.parent.as_ref()?.borrow().get_at(depth - 1, key)
         }
     }
-
-    /// pop off the return stack
-    pub fn parent_env(self) -> Option<Rc<RefCell<Environment>>> {
-        self.parent
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -87,6 +82,9 @@ pub enum Value {
         body: Vec<Statement>,
         closure: Rc<RefCell<Environment>>,
     },
+    LoxClass {
+        name: Rc<str>,
+    }
 }
 
 impl PartialEq for Value {
@@ -133,10 +131,7 @@ impl Value {
                     // silly arity check here to get around move semantics
                     return Err(LoxError::Arity(line, params.len(), arguments.len()));
                 }
-                let old_env = std::mem::replace(
-                    &mut interpreter.environment,
-                    Rc::new(RefCell::new(Environment::default())),
-                );
+                let old_env = Rc::clone(&interpreter.environment);
                 interpreter.environment = Rc::new(RefCell::new(Environment::from(&closure)));
                 for (param, arg) in params.iter().zip(arguments.into_iter()) {
                     interpreter
@@ -151,7 +146,7 @@ impl Value {
                 match result {
                     Ok(()) => Ok(Value::Nil),
                     Err(LoxError::Return(val)) => Ok(val),
-                    Err(e) => return Err(e),
+                    Err(e) => Err(e),
                 }
             }
             _ => Err(LoxError::Uncallable(line)),
@@ -171,7 +166,10 @@ impl std::fmt::Display for Value {
             Value::NativeFunction { .. } => write!(f, "<native fn>"),
             Value::LoxFunction { name, .. } => {
                 write!(f, "<fn {name}>")
-            } //_ => todo!(),
+            },
+            Value::LoxClass { name } => {
+                write!(f, "<class {name}>")
+            }
         }
     }
 }
@@ -187,7 +185,7 @@ impl From<Literal> for Value {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Interpreter {
     environment: Rc<RefCell<Environment>>,
     locals: HashMap<usize, usize>,
@@ -197,7 +195,7 @@ pub struct Interpreter {
 impl Interpreter {
     pub fn new() -> Self {
         let globals = Rc::new(RefCell::new(Environment::default()));
-        globals.as_ref().borrow_mut().define(
+        globals.borrow_mut().define(
             "clock".into(),
             Value::NativeFunction {
                 arity: 0,
@@ -252,7 +250,12 @@ impl Interpreter {
                 self.environment = old_env;
 
                 result?;
-            }
+            },
+            Statement::Class { name, methods } => {
+                self.environment.as_ref().borrow_mut().define(name.to_string(), Value::Nil);
+                let klass = Value::LoxClass { name: Rc::clone(name) };
+                self.environment.as_ref().borrow_mut().assign(name,  klass);
+            },
             Statement::If {
                 condition,
                 then_branch,
@@ -328,9 +331,13 @@ impl Interpreter {
             } => {
                 let result = self.evaluate_expression(value)?;
                 let assigned = if let Some(depth) = self.locals.get(expr_id) {
-                    self.environment.borrow_mut().assign_at(*depth, name.as_ref(), result.clone())
+                    self.environment
+                        .borrow_mut()
+                        .assign_at(*depth, name.as_ref(), result.clone())
                 } else {
-                    self.globals.borrow_mut().assign(name.as_ref(), result.clone())  // global fallback
+                    self.globals
+                        .borrow_mut()
+                        .assign(name.as_ref(), result.clone()) // global fallback
                 };
                 if assigned.is_none() {
                     return Err(LoxError::UndefinedVariable(*line, name.to_string()));
@@ -345,7 +352,7 @@ impl Interpreter {
                 let value = if let Some(depth) = self.locals.get(expr_id) {
                     self.environment.borrow().get_at(*depth, name)
                 } else {
-                    self.globals.borrow().get(name.as_ref())  // global fallback
+                    self.globals.borrow().get(name.as_ref()) // global fallback
                 };
                 value.ok_or_else(|| LoxError::UndefinedVariable(*line, name.to_string()))
             }

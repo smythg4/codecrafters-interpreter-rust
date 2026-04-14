@@ -85,8 +85,11 @@ fn main() -> Result<()> {
             }
             let interpreter = Interpreter::new();
             let mut resolver = Resolver::new(interpreter);
-            if let Err(resolution_error) = resolver.resolve_statements(&statements) {
+            let errs = resolver.resolve_statements(&statements);
+            for resolution_error in &errs {
                 eprintln!("{resolution_error}");
+            }
+            if !errs.is_empty() {
                 std::process::exit(65);
             }
             let mut interpreter = resolver.finish();
