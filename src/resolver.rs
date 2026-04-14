@@ -50,7 +50,7 @@ impl Resolver {
                 }
                 self.end_scope();
             }
-            Statement::Class { name, methods } => {
+            Statement::Class { name, .. } => {
                 if let Err(e) = self.declare(name) {
                     errors.push(e);
                 }

@@ -159,7 +159,7 @@ impl<'de> Parser<'de> {
         })
     }
 
-    fn function_declaration(&mut self, kind: FunctionKind) -> Result<Statement, LoxError> {
+    fn function_declaration(&mut self, _kind: FunctionKind) -> Result<Statement, LoxError> {
         let name_token = self.expect(TokenKind::Ident)?;
         let name = name_token.origin;
         let line = name_token.line;
@@ -200,7 +200,7 @@ impl<'de> Parser<'de> {
         }
 
         self.expect(TokenKind::RightBrace)?;
-        
+
         Ok(Statement::Class {name: Rc::from(name), methods })
     }
 

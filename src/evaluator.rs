@@ -84,7 +84,8 @@ pub enum Value {
     },
     LoxClass {
         name: Rc<str>,
-    }
+    },
+    LoxInstance(Box<Value>), // LoxClass always
 }
 
 impl PartialEq for Value {
@@ -104,6 +105,7 @@ impl Value {
         match self {
             Self::NativeFunction { arity, .. } => *arity,
             Self::LoxFunction { params, .. } => params.len(),
+            Self::LoxClass { .. } => 0,
             _ => unimplemented!(),
         }
     }
@@ -148,7 +150,10 @@ impl Value {
                     Err(LoxError::Return(val)) => Ok(val),
                     Err(e) => Err(e),
                 }
-            }
+            },
+            Self::LoxClass{name} => {
+                Ok(Value::LoxInstance(Box::new(Value::LoxClass{name})))
+            },
             _ => Err(LoxError::Uncallable(line)),
         }
     }
@@ -169,6 +174,13 @@ impl std::fmt::Display for Value {
             },
             Value::LoxClass { name } => {
                 write!(f, "{name}")
+            },
+            Value::LoxInstance(inner) => {
+                match inner.as_ref() {
+                    Value::LoxClass { name } => write!(f, "{name} instance"),
+                    _ => unreachable!(),
+                }
+                
             }
         }
     }
@@ -251,7 +263,7 @@ impl Interpreter {
 
                 result?;
             },
-            Statement::Class { name, methods } => {
+            Statement::Class { name, methods: _ } => {
                 self.environment.as_ref().borrow_mut().define(name.to_string(), Value::Nil);
                 let klass = Value::LoxClass { name: Rc::clone(name) };
                 self.environment.as_ref().borrow_mut().assign(name,  klass);
