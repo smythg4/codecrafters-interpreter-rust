@@ -188,8 +188,13 @@ pub enum Expression {
         operator: BinaryOperator,
         right: Box<Expression>,
     },
-    Variable(usize, Rc<str>), // line, name
+    Variable {
+        expr_id: usize,
+        line: usize,
+        name: Rc<str>,
+    },
     Assign {
+        expr_id: usize,
         line: usize,
         name: Rc<str>,
         value: Box<Expression>,
@@ -224,7 +229,7 @@ impl std::fmt::Display for Expression {
             Expression::Assign { name, value, .. } => {
                 write!(f, "{} = {}", name, value)
             }
-            Expression::Variable(_line, name, ..) => {
+            Expression::Variable { name, .. } => {
                 write!(f, "{}", name)
             }
             Expression::Grouping(exp) => write!(f, "(group {exp})"),

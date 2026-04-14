@@ -8,10 +8,12 @@ mod ast;
 mod evaluator;
 mod lexer;
 mod parser;
+mod resolver;
 mod token;
 
-pub use evaluator::{Intepreter, Value};
+pub use evaluator::{Interpreter, Value};
 pub use parser::Parser;
+pub use resolver::Resolver;
 use token::TokenKind;
 
 #[derive(Error, Debug, Clone)]

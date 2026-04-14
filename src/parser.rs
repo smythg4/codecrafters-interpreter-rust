@@ -5,14 +5,15 @@ use crate::token::{Token, TokenKind};
 use std::iter::Peekable;
 use std::rc::Rc;
 
-    enum FunctionKind {
-        Function,
-        Method,
-    }
+enum FunctionKind {
+    Function,
+    Method,
+}
 
 pub struct Parser<'de> {
     whole: &'de str,
     lexer: Peekable<Lexer<'de>>,
+    next_expr_id: usize,
 }
 
 impl<'de> Parser<'de> {
@@ -21,7 +22,14 @@ impl<'de> Parser<'de> {
         Parser {
             whole: input,
             lexer,
+            next_expr_id: 0,
         }
+    }
+
+    fn get_expr_id(&mut self) -> usize {
+        let id = self.next_expr_id;
+        self.next_expr_id += 1;
+        id
     }
 
     fn match_any(&mut self, kinds: &[TokenKind]) -> Result<Option<Token<'de>>, LoxError> {
@@ -143,7 +151,10 @@ impl<'de> Parser<'de> {
             initializer = Some(self.expression()?);
         }
         self.expect(TokenKind::Semicolon)?;
-        Ok(Statement::Var { name: Rc::from(name), initializer })
+        Ok(Statement::Var {
+            name: Rc::from(name),
+            initializer,
+        })
     }
 
     fn function(&mut self, kind: FunctionKind) -> Result<Statement, LoxError> {
@@ -160,7 +171,7 @@ impl<'de> Parser<'de> {
 
                 let p = self.expect(TokenKind::Ident)?;
                 params.push(p);
-                                if self.match_any(&[TokenKind::Comma])?.is_none() {
+                if self.match_any(&[TokenKind::Comma])?.is_none() {
                     break;
                 }
             }
@@ -168,18 +179,14 @@ impl<'de> Parser<'de> {
         self.expect(TokenKind::RightParen)?;
         self.expect(TokenKind::LeftBrace)?;
         let body = self.block()?;
-        Ok(Statement::Function{ name: Rc::from(name), params: params.iter().map(|p| Rc::from(p.origin)).collect(), body })
+        Ok(Statement::Function {
+            name: Rc::from(name),
+            params: params.iter().map(|p| Rc::from(p.origin)).collect(),
+            body,
+        })
     }
 
     fn statement(&mut self) -> Result<Statement, LoxError> {
-        // if self.match_any(&[TokenKind::LeftBrace])?.is_some() {
-        //     return Ok(Statement::Block(self.block()?));
-        // }
-
-        // if self.match_any(&[TokenKind::Print])?.is_some() {
-        //     return self.print_statement();
-        // }
-
         match self.lexer.peek() {
             Some(Ok(t)) => match t.kind {
                 TokenKind::LeftBrace => {
@@ -321,8 +328,17 @@ impl<'de> Parser<'de> {
             // makes sure that the LHS of the `=` is a valid thing to assign a value
             // to
             match expr {
-                Expression::Variable(line, name) => {
-                    return Ok(Expression::Assign { line, name, value });
+                Expression::Variable {
+                    expr_id,
+                    line,
+                    name,
+                } => {
+                    return Ok(Expression::Assign {
+                        expr_id,
+                        line,
+                        name,
+                        value,
+                    });
                 }
                 _ => {
                     return Err(LoxError::InvalidAssignment(op.line));
@@ -483,7 +499,12 @@ impl<'de> Parser<'de> {
         }
 
         if token.kind == TokenKind::Ident {
-            return Ok(Expression::Variable(token.line, Rc::from(token.origin)));
+            let expr_id = self.get_expr_id();
+            return Ok(Expression::Variable {
+                expr_id,
+                line: token.line,
+                name: Rc::from(token.origin),
+            });
         }
 
         if token.kind == TokenKind::LeftParen {
