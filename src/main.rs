@@ -85,7 +85,10 @@ fn main() -> Result<()> {
             }
             let interpreter = Interpreter::new();
             let mut resolver = Resolver::new(interpreter);
-            resolver.resolve_statements(&statements);
+            if let Err(resolution_error) = resolver.resolve_statements(&statements) {
+                eprintln!("{resolution_error}");
+                std::process::exit(65);
+            }
             let mut interpreter = resolver.finish();
             let val = interpreter.interpret(statements);
             match val {

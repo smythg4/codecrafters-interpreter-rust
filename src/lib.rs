@@ -62,6 +62,12 @@ pub enum LoxError {
     Arity(usize, usize, usize), // line, expected, got
     #[error("This is just a return value, not an actual error")]
     Return(Value),
+    #[error("[line {0}] Already a variable with name '{1}' in this scope.")]
+    DuplicateDeclaration(usize, String),
+    #[error("[line {0}] Can't return from top-level code.")]
+    TopLevelReturn(usize),
+    #[error("[line {0}] can't read local variable '{1}' in its own initializer")]
+    SelfInitialization(usize, String),
 }
 
 impl LoxError {
