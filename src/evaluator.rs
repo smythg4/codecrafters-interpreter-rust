@@ -168,7 +168,7 @@ impl std::fmt::Display for Value {
                 write!(f, "<fn {name}>")
             },
             Value::LoxClass { name } => {
-                write!(f, "<class {name}>")
+                write!(f, "{name}")
             }
         }
     }
