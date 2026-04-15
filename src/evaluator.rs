@@ -41,7 +41,7 @@ impl Environment {
             self.values.insert(key.to_string(), value)
         } else {
             self.parent
-                .as_mut()?
+                .as_ref()?
                 .borrow_mut()
                 .assign_at(depth - 1, key, value)
         }
@@ -84,8 +84,12 @@ pub enum Value {
     },
     LoxClass {
         name: Rc<str>,
+        methods: Rc<HashMap<String, Value>>,
     },
-    LoxInstance(Box<Value>), // LoxClass always
+    LoxInstance {
+        class: Rc<Value>,
+        fields: Rc<RefCell<HashMap<String, Value>>>,
+    },
 }
 
 impl PartialEq for Value {
@@ -147,14 +151,54 @@ impl Value {
                 interpreter.environment = old_env;
                 match result {
                     Ok(()) => Ok(Value::Nil),
-                    Err(LoxError::Return(val)) => Ok(val),
+                    Err(LoxError::Return(val)) => Ok(*val),
                     Err(e) => Err(e),
                 }
-            },
-            Self::LoxClass{name} => {
-                Ok(Value::LoxInstance(Box::new(Value::LoxClass{name})))
-            },
+            }
+            Self::LoxClass { .. } => Ok(Value::LoxInstance {
+                class: Rc::from(self),
+                fields: Rc::new(RefCell::new(HashMap::new())),
+            }),
             _ => Err(LoxError::Uncallable(line)),
+        }
+    }
+
+    pub fn get(self, line: usize, field: &str) -> Result<Value, LoxError> {
+        match self {
+            Self::LoxInstance { class, fields } => match fields.borrow().get(field) {
+                Some(v) => Ok(v.clone()),
+                None => match class.as_ref() {
+                    Value::LoxClass { methods, .. } => {
+                        if let Some(method) = methods.get(field) {
+                            Ok(method.clone())
+                        } else {
+                            let name = match class.as_ref() {
+                                Value::LoxClass { name, .. } => name.as_ref().to_string(),
+                                _ => unreachable!(),
+                            };
+                            Err(LoxError::UndefinedProperty(line, name, field.into()))
+                        }
+                    }
+                    _ => {
+                        let name = match class.as_ref() {
+                            Value::LoxClass { name, .. } => name.as_ref().to_string(),
+                            _ => unreachable!(),
+                        };
+                        Err(LoxError::UndefinedProperty(line, name, field.into()))
+                    }
+                },
+            },
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn set(self, field: &str, value: Value) -> Result<Value, LoxError> {
+        match self {
+            Self::LoxInstance { fields, .. } => {
+                fields.borrow_mut().insert(field.into(), value.clone());
+                Ok(value)
+            }
+            _ => unreachable!(),
         }
     }
 }
@@ -171,17 +215,14 @@ impl std::fmt::Display for Value {
             Value::NativeFunction { .. } => write!(f, "<native fn>"),
             Value::LoxFunction { name, .. } => {
                 write!(f, "<fn {name}>")
-            },
-            Value::LoxClass { name } => {
-                write!(f, "{name}")
-            },
-            Value::LoxInstance(inner) => {
-                match inner.as_ref() {
-                    Value::LoxClass { name } => write!(f, "{name} instance"),
-                    _ => unreachable!(),
-                }
-                
             }
+            Value::LoxClass { name, .. } => {
+                write!(f, "{name}")
+            }
+            Value::LoxInstance { class, .. } => match class.as_ref() {
+                Value::LoxClass { name, .. } => write!(f, "{name} instance"),
+                _ => unreachable!(),
+            },
         }
     }
 }
@@ -202,6 +243,12 @@ pub struct Interpreter {
     environment: Rc<RefCell<Environment>>,
     locals: HashMap<usize, usize>,
     globals: Rc<RefCell<Environment>>,
+}
+
+impl Default for Interpreter {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Interpreter {
@@ -237,7 +284,7 @@ impl Interpreter {
     fn execute_statement(&mut self, stmt: &Statement) -> Result<(), LoxError> {
         match stmt {
             Statement::Expression(exp) => {
-                self.evaluate_expression(&exp)?;
+                self.evaluate_expression(exp)?;
             }
             Statement::Print(exp) => {
                 self.evaluate_print(exp)?;
@@ -245,7 +292,7 @@ impl Interpreter {
             Statement::Var { name, initializer } => {
                 let value = match initializer {
                     None => Value::Nil,
-                    Some(v) => self.evaluate_expression(&v)?,
+                    Some(v) => self.evaluate_expression(v)?,
                 };
                 self.environment
                     .borrow_mut()
@@ -262,18 +309,39 @@ impl Interpreter {
                 self.environment = old_env;
 
                 result?;
-            },
-            Statement::Class { name, methods: _ } => {
-                self.environment.as_ref().borrow_mut().define(name.to_string(), Value::Nil);
-                let klass = Value::LoxClass { name: Rc::clone(name) };
-                self.environment.as_ref().borrow_mut().assign(name,  klass);
-            },
+            }
+            Statement::Class { name, methods } => {
+                self.environment
+                    .borrow_mut()
+                    .define(name.to_string(), Value::Nil);
+                let mut map = HashMap::new();
+                methods.iter().for_each(|m| {
+                    match m {
+                        Statement::Function { name, params, body } => {
+                            let func_name = name.as_ref().into();
+                            let func = Value::LoxFunction {
+                                name: Rc::clone(name),
+                                params: params.clone(),
+                                body: body.clone(),
+                                closure: Rc::clone(&self.environment),
+                            };
+                            map.insert(func_name, func);
+                        }
+                        _ => unreachable!(),
+                    };
+                });
+                let klass = Value::LoxClass {
+                    name: Rc::clone(name),
+                    methods: Rc::new(map),
+                };
+                self.environment.borrow_mut().assign(name, klass);
+            }
             Statement::If {
                 condition,
                 then_branch,
                 else_branch,
             } => {
-                if Self::is_truthy(&self.evaluate_expression(&condition)?) {
+                if Self::is_truthy(&self.evaluate_expression(condition)?) {
                     self.execute_statement(then_branch)?;
                 } else if let Some(branch) = else_branch {
                     self.execute_statement(branch)?;
@@ -283,13 +351,13 @@ impl Interpreter {
                 condition,
                 statement,
             } => {
-                while Self::is_truthy(&self.evaluate_expression(&condition)?) {
+                while Self::is_truthy(&self.evaluate_expression(condition)?) {
                     self.execute_statement(statement)?;
                 }
             }
             Statement::Function { name, params, body } => {
                 let function = Value::LoxFunction {
-                    name: Rc::clone(&name),
+                    name: Rc::clone(name),
                     params: params.clone(),
                     body: body.clone(),
                     closure: Rc::clone(&self.environment),
@@ -300,9 +368,9 @@ impl Interpreter {
             }
             Statement::Return(value) => {
                 if let Some(val) = value {
-                    return Err(LoxError::Return(self.evaluate_expression(&val)?));
+                    return Err(LoxError::Return(Box::new(self.evaluate_expression(val)?)));
                 } else {
-                    return Err(LoxError::Return(Value::Nil));
+                    return Err(LoxError::Return(Box::new(Value::Nil)));
                 }
             }
         }
@@ -376,6 +444,25 @@ impl Interpreter {
                     arguments.push(value);
                 }
                 callee.call(*line, self, arguments)
+            }
+            Expression::Get { line, name, expr } => {
+                let object = self.evaluate_expression(expr)?;
+                match &object {
+                    Value::LoxInstance { .. } => object.get(*line, name),
+                    _ => Err(LoxError::InvalidTypeProperties(0, object.to_string())),
+                }
+            }
+            Expression::Set {
+                name, expr, value, ..
+            } => {
+                let object = self.evaluate_expression(expr)?;
+                match &object {
+                    Value::LoxInstance { .. } => {
+                        let value = self.evaluate_expression(value)?;
+                        Ok(object.set(name, value)?)
+                    }
+                    _ => Err(LoxError::InvalidTypeProperties(0, object.to_string())),
+                }
             }
         }
     }

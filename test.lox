@@ -1,2 +1,10 @@
-class Bagel {};
-Bagel();
+class Bagel {
+  eat() {
+  print "nom nom nom";
+  }
+}
+  var a = Bagel();
+  a.bread = "bagel";
+  a.bread = "sourdough";
+  print a.bread;
+  a.eat();

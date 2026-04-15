@@ -8,7 +8,8 @@ use crate::LoxError;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum FunctionType {
     Function,
-    None,
+    Method,
+    TopLevel,
 }
 
 pub struct Resolver {
@@ -22,7 +23,7 @@ impl Resolver {
         Resolver {
             interpreter,
             scopes: Vec::new(),
-            current_function: FunctionType::None,
+            current_function: FunctionType::TopLevel,
         }
     }
 
@@ -44,17 +45,25 @@ impl Resolver {
         match statement {
             Statement::Block(stmts) => {
                 self.begin_scope();
-                let mut errs = self.resolve_statements(stmts);
-                if let Some(e) = errs.pop() {
-                    errors.push(e);
-                }
+                let errs = self.resolve_statements(stmts);
+                errors.extend_from_slice(&errs);
                 self.end_scope();
             }
-            Statement::Class { name, .. } => {
+            Statement::Class { name, methods, .. } => {
                 if let Err(e) = self.declare(name) {
                     errors.push(e);
                 }
                 self.define(name);
+                let errs = methods
+                    .iter()
+                    .flat_map(|m| match m {
+                        Statement::Function { params, body, .. } => {
+                            self.resolve_function(params, body, FunctionType::Method)
+                        }
+                        _ => unreachable!(),
+                    })
+                    .collect::<Vec<_>>();
+                errors.extend_from_slice(&errs);
             }
             Statement::Var { name, initializer } => {
                 if let Err(e) = self.declare(name) {
@@ -103,13 +112,13 @@ impl Resolver {
                 }
             }
             Statement::Return(expression) => {
-                if self.current_function == FunctionType::None {
+                if self.current_function == FunctionType::TopLevel {
                     errors.push(LoxError::TopLevelReturn(0));
                 }
-                if let Some(expression) = expression {
-                    if let Err(e) = self.resolve_expression(expression) {
-                        errors.push(e);
-                    }
+                if let Some(expression) = expression
+                    && let Err(e) = self.resolve_expression(expression)
+                {
+                    errors.push(e);
                 }
             }
             Statement::While {
@@ -187,6 +196,13 @@ impl Resolver {
             }
             Expression::Unary { right, .. } => {
                 self.resolve_expression(right)?;
+            }
+            Expression::Get { expr, .. } => {
+                self.resolve_expression(expr)?;
+            }
+            Expression::Set { expr, value, .. } => {
+                self.resolve_expression(value)?;
+                self.resolve_expression(expr)?;
             }
         }
         Ok(())

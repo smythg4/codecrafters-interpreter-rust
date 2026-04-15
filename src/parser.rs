@@ -201,7 +201,10 @@ impl<'de> Parser<'de> {
 
         self.expect(TokenKind::RightBrace)?;
 
-        Ok(Statement::Class {name: Rc::from(name), methods })
+        Ok(Statement::Class {
+            name: Rc::from(name),
+            methods,
+        })
     }
 
     fn statement(&mut self) -> Result<Statement, LoxError> {
@@ -358,6 +361,14 @@ impl<'de> Parser<'de> {
                         value,
                     });
                 }
+                Expression::Get { line, name, expr } => {
+                    return Ok(Expression::Set {
+                        line,
+                        name,
+                        expr,
+                        value,
+                    });
+                }
                 _ => {
                     return Err(LoxError::InvalidAssignment(op.line));
                 }
@@ -470,6 +481,15 @@ impl<'de> Parser<'de> {
         loop {
             if self.match_any(&[TokenKind::LeftParen])?.is_some() {
                 expr = self.finish_call(expr)?;
+            } else if self.match_any(&[TokenKind::Dot])?.is_some() {
+                let token = self.expect(TokenKind::Ident)?;
+                let line = token.line;
+                let name = token.origin;
+                expr = Expression::Get {
+                    line,
+                    name: Rc::from(name),
+                    expr: Box::new(expr),
+                };
             } else {
                 break;
             }
@@ -516,25 +536,21 @@ impl<'de> Parser<'de> {
             return Ok(Expression::Literal(literal));
         }
 
-        if token.kind == TokenKind::Ident {
-            let expr_id = self.get_expr_id();
-            return Ok(Expression::Variable {
-                expr_id,
-                line: token.line,
-                name: Rc::from(token.origin),
-            });
+        match token.kind {
+            TokenKind::Ident => {
+                let expr_id = self.get_expr_id();
+                Ok(Expression::Variable {
+                    expr_id,
+                    line: token.line,
+                    name: Rc::from(token.origin),
+                })
+            }
+            TokenKind::LeftParen => {
+                let expression = self.expression()?;
+                self.expect(TokenKind::RightParen)?; // consume the trailing ')' 
+                Ok(Expression::Grouping(Box::new(expression)))
+            }
+            _ => Err(LoxError::InvalidToken(token.line, token.kind)),
         }
-
-        if token.kind == TokenKind::LeftParen {
-            let expression = self.expression()?;
-            self.expect(TokenKind::RightParen)?; // consume the trailing ')' 
-            return Ok(Expression::Grouping(Box::new(expression)));
-        }
-
-        Err(LoxError::UnexpectedToken(
-            token.line,
-            TokenKind::LeftParen,
-            token.kind,
-        ))
     }
 }

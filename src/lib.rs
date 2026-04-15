@@ -33,9 +33,9 @@ pub enum LoxError {
     #[error("[line {0}] Parse Error: Invalid Token for current operation: {1:?}.")]
     InvalidToken(usize, TokenKind), // (line#, tokentype)
     #[error("[line {0}] Type Error: Invalid Type for current operation: expected: {1}, got {2:?}")]
-    InvalidType(usize, String, Value),
+    InvalidType(usize, String, String),
     #[error("[line {0}] Type Mismatch: {1:?} , {2:?}")]
-    TypeMismatch(usize, Value, Value),
+    TypeMismatch(usize, String, String),
     #[error("[line {0}] Operand must be a number.")]
     NumberOperandRequired(usize),
     #[error("[line {0}] Operands must be numbers.")]
@@ -61,13 +61,17 @@ pub enum LoxError {
     #[error("[line {0}] Expected {1} arguments but got {2}.")]
     Arity(usize, usize, usize), // line, expected, got
     #[error("This is just a return value, not an actual error")]
-    Return(Value),
+    Return(Box<Value>),
     #[error("[line {0}] Already a variable with name '{1}' in this scope.")]
     DuplicateDeclaration(usize, String),
     #[error("[line {0}] Can't return from top-level code.")]
     TopLevelReturn(usize),
     #[error("[line {0}] can't read local variable '{1}' in its own initializer")]
     SelfInitialization(usize, String),
+    #[error("[line {0}] Only instances have properties or fields. Found: {1}")]
+    InvalidTypeProperties(usize, String),
+    #[error("[line {0}] Undefined property '{2}' found for class '{1}'")]
+    UndefinedProperty(usize, String, String),
 }
 
 impl LoxError {

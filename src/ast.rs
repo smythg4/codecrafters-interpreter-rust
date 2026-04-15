@@ -29,7 +29,7 @@ pub enum Statement {
     Class {
         name: Rc<str>,
         methods: Vec<Statement>,
-    }
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -209,6 +209,17 @@ pub enum Expression {
         callee: Box<Expression>,
         args: Vec<Expression>,
     },
+    Get {
+        line: usize,
+        name: Rc<str>,
+        expr: Box<Expression>,
+    },
+    Set {
+        line: usize,
+        name: Rc<str>,
+        expr: Box<Expression>,
+        value: Box<Expression>,
+    },
 }
 
 impl std::fmt::Display for Expression {
@@ -246,6 +257,14 @@ impl std::fmt::Display for Expression {
                         .collect::<Vec<_>>()
                         .join(", ")
                 )
+            }
+            Expression::Get { name, expr, .. } => {
+                write!(f, "{expr}.{name}")
+            }
+            Expression::Set {
+                name, expr, value, ..
+            } => {
+                write!(f, "{expr}.{name} = {value}")
             }
         }
     }
