@@ -80,6 +80,8 @@ pub enum LoxError {
     SelfInheritance(usize, String),
     #[error("[line {0}] A class '{1}' tried to inherit from a non-Class")]
     InvalidInheritence(usize, String),
+    #[error("[line {0}] Can't use `super` outside of a class or in a top level class")]
+    InvalidUseofSuper(usize),
 }
 
 impl LoxError {
@@ -98,6 +100,7 @@ impl LoxError {
                 | LoxError::InvalidTypeProperties(_, _)
                 | LoxError::UndefinedProperty(_, _, _)
                 | LoxError::InvalidInheritence(_, _)
+                | LoxError::InvalidUseofSuper(_)
         )
     }
 }

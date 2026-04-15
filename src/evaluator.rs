@@ -384,6 +384,18 @@ impl Interpreter {
                 self.environment
                     .borrow_mut()
                     .define(name.to_string(), Value::Nil);
+
+                let super_klass = super_class
+                    .as_ref()
+                    .map(|ref sc| self.evaluate_expression(sc))
+                    .transpose()?;
+
+                let old_env = Rc::clone(&self.environment);
+                if let Some(ref sc) = super_klass {
+                    self.environment = Rc::new(RefCell::new(Environment::from(&self.environment)));
+                    self.environment.borrow_mut().define("super".into(), sc.clone());
+                }
+
                 let mut map = HashMap::new();
                 methods.iter().for_each(|m| {
                     match m {
@@ -401,13 +413,12 @@ impl Interpreter {
                         _ => unreachable!(),
                     };
                 });
-                let super_klass = super_class
-                    .as_ref()
-                    .map(|ref sc| self.evaluate_expression(sc))
-                    .transpose()?;
+
                 match super_klass {
                     None => {},
-                    Some(Value::LoxClass { .. }) => {},
+                    Some(Value::LoxClass { .. }) => {
+                        self.environment = old_env;
+                    },
                     Some(_) => return Err(LoxError::InvalidInheritence(0, name.as_ref().into()))
                 }
                 let klass = Value::LoxClass {
@@ -549,6 +560,20 @@ impl Interpreter {
                     self.globals.borrow().get("this") // global fallback
                 };
                 value.ok_or_else(|| LoxError::UndefinedVariable(*line, "this".to_string()))
+            },
+            Expression::Super { line, expr_id, method_name } => {
+                if let Some(depth) = self.locals.get(expr_id) {
+                    let super_obj = self.environment.borrow().get_at(*depth, "super").unwrap();
+                    let this_obj = self.environment.borrow().get_at(*depth-1, "this").unwrap();
+                    if let Some(method) = super_obj.find_method(method_name) {
+                        return Ok(method.bind(this_obj));
+                    } else {
+                        return Err(LoxError::UndefinedProperty(*line, this_obj.to_string(), method_name.as_ref().into()))
+                    }
+                    
+                } else {
+                    panic!("couldn't find information I needed!!")
+                }
             }
         }
     }

@@ -16,6 +16,7 @@ enum FunctionType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ClassType {
     Class,
+    SubClass,
     TopLevel,
 }
 
@@ -71,6 +72,7 @@ impl Resolver {
                 self.define(name);
 
                 if let Some(sc) = super_class {
+                    self.current_class = ClassType::SubClass;
                     if let Expression::Variable {
                         line,
                         name: super_name,
@@ -78,11 +80,15 @@ impl Resolver {
                     } = sc
                         && super_name.as_ref() == name.as_ref()
                     {
+                        
                         let err = LoxError::SelfInheritance(*line, super_name.as_ref().into());
                         errors.push(err);
                     } else if let Err(e) = self.resolve_expression(sc) {
                         errors.push(e);
                     }
+
+                    self.begin_scope();
+                    self.scopes.last_mut().unwrap().insert("super".into(), true);
                 }
 
                 self.begin_scope();
@@ -111,6 +117,9 @@ impl Resolver {
                     .collect::<Vec<_>>();
                 errors.extend_from_slice(&errs);
                 self.end_scope();
+                if super_class.is_some() {
+                    self.end_scope();
+                }
                 self.current_class = enclosing_class;
             }
             Statement::Var { name, initializer } => {
@@ -260,6 +269,12 @@ impl Resolver {
                     return Err(LoxError::InvalidThis(*line));
                 }
                 self.resolve_local(*expr_id, "this");
+            },
+            Expression::Super { line, expr_id, .. } => {
+                if [ClassType::TopLevel, ClassType::Class].contains(&self.current_class) {
+                    return Err(LoxError::InvalidUseofSuper(*line));
+                }
+                self.resolve_local(*expr_id, "super");
             }
         }
         Ok(())

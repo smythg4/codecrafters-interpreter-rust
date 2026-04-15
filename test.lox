@@ -1,20 +1,14 @@
-class Breakfast {
-  init() {
-  this.meat = "bacon";
-  }
-
-  woof() {
-  print "woof woof!";
+class Doughnut {
+  cook() {
+    print "Fry until golden brown.";
   }
 }
 
-class EnglishBreakfast < Breakfast {
-
-foo() {
-  print this.meat;
+class BostonCream < Doughnut {
+  cook() {
+    super.cook();
+    print "Pipe full of custard and coat with chocolate.";
   }
 }
 
-var mine = EnglishBreakfast();
-mine.foo();
-mine.woof();
+BostonCream().cook();
