@@ -66,12 +66,16 @@ impl Resolver {
                 }
                 self.define(name);
 
-                if let Some(sc) = super_class
-                && let Expression::Variable { line, name: super_name, .. } = sc 
-                && super_name.as_ref() == name.as_ref() {
-                    let err = LoxError::SelfInheritance(*line, super_name.as_ref().into());
-                    errors.push(err);
+                if let Some(sc) = super_class {
+                    if let Expression::Variable { line, name: super_name, .. } = sc 
+                    && super_name.as_ref() == name.as_ref() {
+                        let err = LoxError::SelfInheritance(*line, super_name.as_ref().into());
+                        errors.push(err);
+                    } else if let Err(e) = self.resolve_expression(sc) {
+                        errors.push(e);
+                    }
                 }
+
                 self.begin_scope();
 
                 // SAFETY: `.unwrap()` here is totally safe since we've just begun a scope
