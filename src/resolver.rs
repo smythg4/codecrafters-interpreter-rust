@@ -54,6 +54,11 @@ impl Resolver {
                     errors.push(e);
                 }
                 self.define(name);
+
+                self.begin_scope();
+                // TODO: Error handling / panic resolution
+                self.scopes.last_mut().unwrap().insert("this".into(), true);
+
                 let errs = methods
                     .iter()
                     .flat_map(|m| match m {
@@ -64,6 +69,7 @@ impl Resolver {
                     })
                     .collect::<Vec<_>>();
                 errors.extend_from_slice(&errs);
+                self.end_scope();
             }
             Statement::Var { name, initializer } => {
                 if let Err(e) = self.declare(name) {
@@ -203,6 +209,9 @@ impl Resolver {
             Expression::Set { expr, value, .. } => {
                 self.resolve_expression(value)?;
                 self.resolve_expression(expr)?;
+            }
+            Expression::This(expr_id) => {
+                self.resolve_local(*expr_id, "this");
             }
         }
         Ok(())

@@ -550,6 +550,10 @@ impl<'de> Parser<'de> {
                 self.expect(TokenKind::RightParen)?; // consume the trailing ')' 
                 Ok(Expression::Grouping(Box::new(expression)))
             }
+            TokenKind::This => {
+                let id = self.get_expr_id();
+                Ok(Expression::This(id))
+            }
             _ => Err(LoxError::InvalidToken(token.line, token.kind)),
         }
     }

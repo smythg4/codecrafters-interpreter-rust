@@ -220,6 +220,7 @@ pub enum Expression {
         expr: Box<Expression>,
         value: Box<Expression>,
     },
+    This(usize), // expr_id
 }
 
 impl std::fmt::Display for Expression {
@@ -266,6 +267,7 @@ impl std::fmt::Display for Expression {
             } => {
                 write!(f, "{expr}.{name} = {value}")
             }
+            Expression::This(_) => write!(f, "this"),
         }
     }
 }

@@ -1,9 +1,11 @@
 class Bagel {
   eat() {
-  print "nom nom nom";
+  print "nom nom nom "+this.bread;
+  print "chomp chomp comp "+this.meat;
   }
 }
   var a = Bagel();
+  a.meat = "bacon";
   a.bread = "bagel";
   a.bread = "sourdough";
   print a.bread;

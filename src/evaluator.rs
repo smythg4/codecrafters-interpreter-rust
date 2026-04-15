@@ -163,6 +163,26 @@ impl Value {
         }
     }
 
+    fn bind(self, instance: Value) -> Value {
+        let Value::LoxFunction {
+            name,
+            params,
+            body,
+            closure,
+        } = self
+        else {
+            unreachable!()
+        };
+        let env = Rc::new(RefCell::new(Environment::from(&closure)));
+        env.borrow_mut().define("this".into(), instance);
+        Value::LoxFunction {
+            name,
+            params,
+            body,
+            closure: env,
+        }
+    }
+
     pub fn get(self, line: usize, field: &str) -> Result<Value, LoxError> {
         match self {
             Self::LoxInstance { class, fields } => match fields.borrow().get(field) {
@@ -170,7 +190,12 @@ impl Value {
                 None => match class.as_ref() {
                     Value::LoxClass { methods, .. } => {
                         if let Some(method) = methods.get(field) {
-                            Ok(method.clone())
+                            let instance = Value::LoxInstance {
+                                class: Rc::clone(&class),
+                                fields: Rc::clone(&fields),
+                            };
+                            let bound_method = method.clone().bind(instance);
+                            Ok(bound_method)
                         } else {
                             let name = match class.as_ref() {
                                 Value::LoxClass { name, .. } => name.as_ref().to_string(),
@@ -462,6 +487,14 @@ impl Interpreter {
                         Ok(object.set(name, value)?)
                     }
                     _ => Err(LoxError::InvalidTypeProperties(0, object.to_string())),
+                }
+            }
+            Expression::This(_) => {
+                // TODO: This isn't right...
+                if let Some(val) = self.environment.borrow().get("this") {
+                    Ok(val)
+                } else {
+                    panic!("No `this` to find!")
                 }
             }
         }
