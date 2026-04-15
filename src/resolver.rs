@@ -67,14 +67,15 @@ impl Resolver {
                 self.define(name);
 
                 self.begin_scope();
-                // TODO: Error handling / panic resolution
+                
+                // SAFETY: `.unwrap()` here is totally safe since we've just begun a scope
                 self.scopes.last_mut().unwrap().insert("this".into(), true);
 
                 let errs = methods
                     .iter()
                     .flat_map(|m| match m {
-                        Statement::Function { params, body, .. } => {
-                            let f_type = if name.as_ref() == "init" {
+                        Statement::Function { name: method_name, params, body, .. } => {
+                            let f_type = if method_name.as_ref() == "init" {
                                 FunctionType::Initializer
                             } else {
                                 FunctionType::Method
@@ -138,7 +139,7 @@ impl Resolver {
                 if self.current_function == FunctionType::TopLevel {
                     errors.push(LoxError::TopLevelReturn(0));
                 }
-                if self.current_function == FunctionType::Initializer {
+                if self.current_function == FunctionType::Initializer && expression.is_some() {
                     errors.push(LoxError::InitializerReturn(0));
                 }
                 if let Some(expression) = expression
