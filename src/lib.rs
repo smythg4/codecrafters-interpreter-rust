@@ -72,6 +72,8 @@ pub enum LoxError {
     InvalidTypeProperties(usize, String),
     #[error("[line {0}] Undefined property '{2}' found for class '{1}'")]
     UndefinedProperty(usize, String, String),
+    #[error("[line {0}] Can't use `this` outside a class.")]
+    InvalidThis(usize),
 }
 
 impl LoxError {
@@ -87,6 +89,8 @@ impl LoxError {
                 | LoxError::TooManyArguments(_)
                 | LoxError::Uncallable(_)
                 | LoxError::Arity(_, _, _)
+                | LoxError::InvalidTypeProperties(_, _)
+                | LoxError::UndefinedProperty(_,_,_)
         )
     }
 }

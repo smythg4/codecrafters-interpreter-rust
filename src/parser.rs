@@ -551,8 +551,8 @@ impl<'de> Parser<'de> {
                 Ok(Expression::Grouping(Box::new(expression)))
             }
             TokenKind::This => {
-                let id = self.get_expr_id();
-                Ok(Expression::This(id))
+                let expr_id = self.get_expr_id();
+                Ok(Expression::This{expr_id,line: token.line})
             }
             _ => Err(LoxError::InvalidToken(token.line, token.kind)),
         }

@@ -489,13 +489,13 @@ impl Interpreter {
                     _ => Err(LoxError::InvalidTypeProperties(0, object.to_string())),
                 }
             }
-            Expression::This(_) => {
-                // TODO: This isn't right...
-                if let Some(val) = self.environment.borrow().get("this") {
-                    Ok(val)
+            Expression::This{expr_id, line} => {
+                let value = if let Some(depth) = self.locals.get(expr_id) {
+                    self.environment.borrow().get_at(*depth, "this")
                 } else {
-                    panic!("No `this` to find!")
-                }
+                    self.globals.borrow().get("this") // global fallback
+                };
+                value.ok_or_else(|| LoxError::UndefinedVariable(*line, "this".to_string()))
             }
         }
     }

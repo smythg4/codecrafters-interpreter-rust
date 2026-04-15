@@ -12,10 +12,17 @@ enum FunctionType {
     TopLevel,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ClassType {
+    Class,
+    TopLevel,
+}
+
 pub struct Resolver {
     interpreter: Interpreter,
     scopes: Vec<HashMap<String, bool>>,
     current_function: FunctionType,
+    current_class: ClassType,
 }
 
 impl Resolver {
@@ -24,6 +31,7 @@ impl Resolver {
             interpreter,
             scopes: Vec::new(),
             current_function: FunctionType::TopLevel,
+            current_class: ClassType::TopLevel,
         }
     }
 
@@ -50,6 +58,8 @@ impl Resolver {
                 self.end_scope();
             }
             Statement::Class { name, methods, .. } => {
+                let enclosing_class = self.current_class;
+                self.current_class = ClassType::Class;
                 if let Err(e) = self.declare(name) {
                     errors.push(e);
                 }
@@ -70,6 +80,7 @@ impl Resolver {
                     .collect::<Vec<_>>();
                 errors.extend_from_slice(&errs);
                 self.end_scope();
+                self.current_class = enclosing_class;
             }
             Statement::Var { name, initializer } => {
                 if let Err(e) = self.declare(name) {
@@ -210,7 +221,10 @@ impl Resolver {
                 self.resolve_expression(value)?;
                 self.resolve_expression(expr)?;
             }
-            Expression::This(expr_id) => {
+            Expression::This { line, expr_id} => {
+                if self.current_class == ClassType::TopLevel {
+                    return Err(LoxError::InvalidThis(*line));
+                }
                 self.resolve_local(*expr_id, "this");
             }
         }
