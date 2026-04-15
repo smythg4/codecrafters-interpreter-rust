@@ -2,13 +2,19 @@ class Breakfast {
   init() {
   this.meat = "bacon";
   }
+
+  woof() {
+  print "woof woof!";
+  }
 }
 
-class EnglishBreakfast < EnglishBreakfast {
-  foo() {
+class EnglishBreakfast < Breakfast {
+
+foo() {
   print this.meat;
   }
 }
 
 var mine = EnglishBreakfast();
 mine.foo();
+mine.woof();

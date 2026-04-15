@@ -193,11 +193,14 @@ impl<'de> Parser<'de> {
 
         let super_class = if self.match_any(&[TokenKind::Less])?.is_some() {
             let ident = self.expect(TokenKind::Ident)?;
-            Some(Expression::Variable { expr_id: self.get_expr_id(), line: ident.line, name: Rc::from(ident.origin) })
+            Some(Expression::Variable {
+                expr_id: self.get_expr_id(),
+                line: ident.line,
+                name: Rc::from(ident.origin),
+            })
         } else {
             None
         };
-        
 
         self.expect(TokenKind::LeftBrace)?; // consume the '{'
 

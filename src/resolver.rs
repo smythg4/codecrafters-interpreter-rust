@@ -58,7 +58,11 @@ impl Resolver {
                 errors.extend_from_slice(&errs);
                 self.end_scope();
             }
-            Statement::Class { name, methods, super_class } => {
+            Statement::Class {
+                name,
+                methods,
+                super_class,
+            } => {
                 let enclosing_class = self.current_class;
                 self.current_class = ClassType::Class;
                 if let Err(e) = self.declare(name) {
@@ -67,8 +71,13 @@ impl Resolver {
                 self.define(name);
 
                 if let Some(sc) = super_class {
-                    if let Expression::Variable { line, name: super_name, .. } = sc 
-                    && super_name.as_ref() == name.as_ref() {
+                    if let Expression::Variable {
+                        line,
+                        name: super_name,
+                        ..
+                    } = sc
+                        && super_name.as_ref() == name.as_ref()
+                    {
                         let err = LoxError::SelfInheritance(*line, super_name.as_ref().into());
                         errors.push(err);
                     } else if let Err(e) = self.resolve_expression(sc) {
@@ -84,7 +93,12 @@ impl Resolver {
                 let errs = methods
                     .iter()
                     .flat_map(|m| match m {
-                        Statement::Function { name: method_name, params, body, .. } => {
+                        Statement::Function {
+                            name: method_name,
+                            params,
+                            body,
+                            ..
+                        } => {
                             let f_type = if method_name.as_ref() == "init" {
                                 FunctionType::Initializer
                             } else {

@@ -178,7 +178,9 @@ impl Value {
                 };
 
                 if let Some(initializer) = class_rc.find_method("init") {
-                    return initializer.bind(instance).call(line, interpreter, arguments);
+                    return initializer
+                        .bind(instance)
+                        .call(line, interpreter, arguments);
                 }
 
                 Ok(instance)
@@ -249,7 +251,19 @@ impl Value {
 
     fn find_method(&self, key: &str) -> Option<Value> {
         match self {
-            Value::LoxClass { methods, .. } => methods.get(key).cloned(),
+            Value::LoxClass {
+                methods,
+                super_class,
+                ..
+            } => {
+              if let Some(val) = methods.get(key) {
+                return Some(val.clone())
+              } else if let Some(sc) = super_class.as_ref() && let Some(val) = sc.find_method(key) {
+                return Some(val.clone())
+              } else {
+                return None;
+              }
+            },
             _ => None,
         }
     }
@@ -362,7 +376,11 @@ impl Interpreter {
 
                 result?;
             }
-            Statement::Class { name, methods, super_class } => {
+            Statement::Class {
+                name,
+                methods,
+                super_class,
+            } => {
                 self.environment
                     .borrow_mut()
                     .define(name.to_string(), Value::Nil);
@@ -383,7 +401,10 @@ impl Interpreter {
                         _ => unreachable!(),
                     };
                 });
-                let super_klass = super_class.as_ref().map(|ref sc| self.evaluate_expression(sc)).transpose()?;
+                let super_klass = super_class
+                    .as_ref()
+                    .map(|ref sc| self.evaluate_expression(sc))
+                    .transpose()?;
                 let klass = Value::LoxClass {
                     name: Rc::clone(name),
                     methods: Rc::new(map),
