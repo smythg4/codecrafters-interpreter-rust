@@ -1,12 +1,14 @@
-class Bagel {
-  eat() {
-  print "nom nom nom "+this.bread;
-  print "chomp chomp comp "+this.meat;
+class Breakfast {
+  init() {
+  this.meat = "bacon";
   }
 }
-  var a = Bagel();
-  a.meat = "bacon";
-  a.bread = "bagel";
-  a.bread = "sourdough";
-  print a.bread;
-  a.eat();
+
+class EnglishBreakfast < EnglishBreakfast {
+  foo() {
+  print this.meat;
+  }
+}
+
+var mine = EnglishBreakfast();
+mine.foo();

@@ -190,6 +190,15 @@ impl<'de> Parser<'de> {
 
     fn class_declaration(&mut self) -> Result<Statement, LoxError> {
         let name = self.expect(TokenKind::Ident)?.origin;
+
+        let super_class = if self.match_any(&[TokenKind::Less])?.is_some() {
+            let ident = self.expect(TokenKind::Ident)?;
+            Some(Expression::Variable { expr_id: self.get_expr_id(), line: ident.line, name: Rc::from(ident.origin) })
+        } else {
+            None
+        };
+        
+
         self.expect(TokenKind::LeftBrace)?; // consume the '{'
 
         let mut methods = Vec::new();
@@ -204,6 +213,7 @@ impl<'de> Parser<'de> {
         Ok(Statement::Class {
             name: Rc::from(name),
             methods,
+            super_class,
         })
     }
 

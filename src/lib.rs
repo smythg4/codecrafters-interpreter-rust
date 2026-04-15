@@ -76,6 +76,8 @@ pub enum LoxError {
     UndefinedProperty(usize, String, String),
     #[error("[line {0}] Can't use `this` outside a class.")]
     InvalidThis(usize),
+    #[error("[line {0}] A class '{1}' can't inherit from itself")]
+    SelfInheritance(usize, String),
 }
 
 impl LoxError {

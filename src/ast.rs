@@ -29,6 +29,7 @@ pub enum Statement {
     Class {
         name: Rc<str>,
         methods: Vec<Statement>,
+        super_class: Option<Expression>, // Expression::Var
     },
 }
 

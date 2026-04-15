@@ -86,6 +86,7 @@ pub enum Value {
     LoxClass {
         name: Rc<str>,
         methods: Rc<HashMap<String, Value>>,
+        super_class: Box<Option<Value>>, // always Value::LoxClass
     },
     LoxInstance {
         class: Rc<Value>,
@@ -361,7 +362,7 @@ impl Interpreter {
 
                 result?;
             }
-            Statement::Class { name, methods } => {
+            Statement::Class { name, methods, super_class } => {
                 self.environment
                     .borrow_mut()
                     .define(name.to_string(), Value::Nil);
@@ -382,9 +383,11 @@ impl Interpreter {
                         _ => unreachable!(),
                     };
                 });
+                let super_klass = super_class.as_ref().map(|ref sc| self.evaluate_expression(sc)).transpose()?;
                 let klass = Value::LoxClass {
                     name: Rc::clone(name),
                     methods: Rc::new(map),
+                    super_class: Box::new(super_klass),
                 };
                 self.environment.borrow_mut().assign(name, klass);
             }
