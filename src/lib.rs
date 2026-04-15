@@ -66,6 +66,8 @@ pub enum LoxError {
     DuplicateDeclaration(usize, String),
     #[error("[line {0}] Can't return from top-level code.")]
     TopLevelReturn(usize),
+    #[error("[line {0}] Can't return a value from an initializer.")]
+    InitializerReturn(usize),
     #[error("[line {0}] can't read local variable '{1}' in its own initializer")]
     SelfInitialization(usize, String),
     #[error("[line {0}] Only instances have properties or fields. Found: {1}")]
@@ -90,7 +92,7 @@ impl LoxError {
                 | LoxError::Uncallable(_)
                 | LoxError::Arity(_, _, _)
                 | LoxError::InvalidTypeProperties(_, _)
-                | LoxError::UndefinedProperty(_,_,_)
+                | LoxError::UndefinedProperty(_, _, _)
         )
     }
 }

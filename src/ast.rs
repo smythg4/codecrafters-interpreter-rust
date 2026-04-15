@@ -223,7 +223,7 @@ pub enum Expression {
     This {
         line: usize,
         expr_id: usize,
-    }
+    },
 }
 
 impl std::fmt::Display for Expression {
@@ -270,7 +270,7 @@ impl std::fmt::Display for Expression {
             } => {
                 write!(f, "{expr}.{name} = {value}")
             }
-            Expression::This{..} => write!(f, "this"),
+            Expression::This { .. } => write!(f, "this"),
         }
     }
 }

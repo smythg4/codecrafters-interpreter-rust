@@ -81,6 +81,7 @@ pub enum Value {
         params: Vec<Rc<str>>,
         body: Vec<Statement>,
         closure: Rc<RefCell<Environment>>,
+        is_initializer: bool,
     },
     LoxClass {
         name: Rc<str>,
@@ -109,7 +110,13 @@ impl Value {
         match self {
             Self::NativeFunction { arity, .. } => *arity,
             Self::LoxFunction { params, .. } => params.len(),
-            Self::LoxClass { .. } => 0,
+            Self::LoxClass { .. } => {
+                if let Some(initializer) = self.find_method("init") {
+                    initializer.arity()
+                } else {
+                    0
+                }
+            }
             _ => unimplemented!(),
         }
     }
@@ -131,6 +138,7 @@ impl Value {
                 params,
                 body,
                 closure,
+                is_initializer,
                 ..
             } => {
                 if arguments.len() != params.len() {
@@ -150,15 +158,30 @@ impl Value {
                 // make sure we restore the environment in the event of error propogation with `result?;`
                 interpreter.environment = old_env;
                 match result {
-                    Ok(()) => Ok(Value::Nil),
+                    Ok(()) => {
+                        if is_initializer && let Some(init) = closure.borrow().get_at(0, "this") {
+                            Ok(init)
+                        } else {
+                            Ok(Value::Nil)
+                        }
+                    }
                     Err(LoxError::Return(val)) => Ok(*val),
                     Err(e) => Err(e),
                 }
             }
-            Self::LoxClass { .. } => Ok(Value::LoxInstance {
-                class: Rc::from(self),
-                fields: Rc::new(RefCell::new(HashMap::new())),
-            }),
+            Self::LoxClass { .. } => {
+                let class_rc = Rc::new(self);
+                let instance = Value::LoxInstance {
+                    class: Rc::clone(&class_rc),
+                    fields: Rc::new(RefCell::new(HashMap::new())),
+                };
+
+                if let Some(initializer) = class_rc.find_method("init") {
+                    return initializer.bind(instance).call(line, interpreter, arguments);
+                }
+
+                Ok(instance)
+            }
             _ => Err(LoxError::Uncallable(line)),
         }
     }
@@ -169,6 +192,7 @@ impl Value {
             params,
             body,
             closure,
+            is_initializer,
         } = self
         else {
             unreachable!()
@@ -180,50 +204,52 @@ impl Value {
             params,
             body,
             closure: env,
+            is_initializer,
         }
     }
 
     pub fn get(self, line: usize, field: &str) -> Result<Value, LoxError> {
         match self {
-            Self::LoxInstance { class, fields } => match fields.borrow().get(field) {
-                Some(v) => Ok(v.clone()),
-                None => match class.as_ref() {
-                    Value::LoxClass { methods, .. } => {
-                        if let Some(method) = methods.get(field) {
-                            let instance = Value::LoxInstance {
-                                class: Rc::clone(&class),
-                                fields: Rc::clone(&fields),
-                            };
-                            let bound_method = method.clone().bind(instance);
-                            Ok(bound_method)
-                        } else {
-                            let name = match class.as_ref() {
-                                Value::LoxClass { name, .. } => name.as_ref().to_string(),
-                                _ => unreachable!(),
-                            };
-                            Err(LoxError::UndefinedProperty(line, name, field.into()))
-                        }
-                    }
-                    _ => {
-                        let name = match class.as_ref() {
-                            Value::LoxClass { name, .. } => name.as_ref().to_string(),
-                            _ => unreachable!(),
+            Self::LoxInstance { class, fields } => {
+                if let Some(v) = fields.borrow().get(field) {
+                    return Ok(v.clone());
+                }
+                let instance = Value::LoxInstance {
+                    class: Rc::clone(&class),
+                    fields: Rc::clone(&fields),
+                };
+                match class.find_method(field) {
+                    Some(method) => Ok(method.bind(instance)),
+                    None => {
+                        let Value::LoxClass { name, .. } = class.as_ref() else {
+                            unreachable!()
                         };
-                        Err(LoxError::UndefinedProperty(line, name, field.into()))
+                        Err(LoxError::UndefinedProperty(
+                            line,
+                            name.as_ref().to_string(),
+                            field.into(),
+                        ))
                     }
-                },
-            },
-            _ => unreachable!(),
+                }
+            }
+            _ => Err(LoxError::InvalidTypeProperties(line, self.to_string())),
         }
     }
 
-    pub fn set(self, field: &str, value: Value) -> Result<Value, LoxError> {
+    pub fn set(self, line: usize, field: &str, value: Value) -> Result<Value, LoxError> {
         match self {
             Self::LoxInstance { fields, .. } => {
                 fields.borrow_mut().insert(field.into(), value.clone());
                 Ok(value)
             }
-            _ => unreachable!(),
+            _ => Err(LoxError::InvalidTypeProperties(line, value.to_string())),
+        }
+    }
+
+    fn find_method(&self, key: &str) -> Option<Value> {
+        match self {
+            Value::LoxClass { methods, .. } => methods.get(key).cloned(),
+            _ => None,
         }
     }
 }
@@ -349,6 +375,7 @@ impl Interpreter {
                                 params: params.clone(),
                                 body: body.clone(),
                                 closure: Rc::clone(&self.environment),
+                                is_initializer: name.as_ref() == "init",
                             };
                             map.insert(func_name, func);
                         }
@@ -386,17 +413,18 @@ impl Interpreter {
                     params: params.clone(),
                     body: body.clone(),
                     closure: Rc::clone(&self.environment),
+                    is_initializer: false,
                 };
                 self.environment
                     .borrow_mut()
                     .define(name.to_string(), function);
             }
             Statement::Return(value) => {
-                if let Some(val) = value {
-                    return Err(LoxError::Return(Box::new(self.evaluate_expression(val)?)));
-                } else {
-                    return Err(LoxError::Return(Box::new(Value::Nil)));
-                }
+                let val = match value {
+                    Some(v) => self.evaluate_expression(v)?,
+                    None => Value::Nil,
+                };
+                return Err(LoxError::Return(Box::new(val)));
             }
         }
         Ok(())
@@ -472,24 +500,20 @@ impl Interpreter {
             }
             Expression::Get { line, name, expr } => {
                 let object = self.evaluate_expression(expr)?;
-                match &object {
-                    Value::LoxInstance { .. } => object.get(*line, name),
-                    _ => Err(LoxError::InvalidTypeProperties(0, object.to_string())),
-                }
+                object.get(*line, name)
             }
             Expression::Set {
-                name, expr, value, ..
+                line,
+                name,
+                expr,
+                value,
             } => {
                 let object = self.evaluate_expression(expr)?;
-                match &object {
-                    Value::LoxInstance { .. } => {
-                        let value = self.evaluate_expression(value)?;
-                        Ok(object.set(name, value)?)
-                    }
-                    _ => Err(LoxError::InvalidTypeProperties(0, object.to_string())),
-                }
+
+                let value = self.evaluate_expression(value)?;
+                Ok(object.set(*line, name, value)?)
             }
-            Expression::This{expr_id, line} => {
+            Expression::This { expr_id, line } => {
                 let value = if let Some(depth) = self.locals.get(expr_id) {
                     self.environment.borrow().get_at(*depth, "this")
                 } else {

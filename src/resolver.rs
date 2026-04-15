@@ -9,6 +9,7 @@ use crate::LoxError;
 enum FunctionType {
     Function,
     Method,
+    Initializer,
     TopLevel,
 }
 
@@ -73,7 +74,12 @@ impl Resolver {
                     .iter()
                     .flat_map(|m| match m {
                         Statement::Function { params, body, .. } => {
-                            self.resolve_function(params, body, FunctionType::Method)
+                            let f_type = if name.as_ref() == "init" {
+                                FunctionType::Initializer
+                            } else {
+                                FunctionType::Method
+                            };
+                            self.resolve_function(params, body, f_type)
                         }
                         _ => unreachable!(),
                     })
@@ -131,6 +137,9 @@ impl Resolver {
             Statement::Return(expression) => {
                 if self.current_function == FunctionType::TopLevel {
                     errors.push(LoxError::TopLevelReturn(0));
+                }
+                if self.current_function == FunctionType::Initializer {
+                    errors.push(LoxError::InitializerReturn(0));
                 }
                 if let Some(expression) = expression
                     && let Err(e) = self.resolve_expression(expression)
@@ -221,7 +230,7 @@ impl Resolver {
                 self.resolve_expression(value)?;
                 self.resolve_expression(expr)?;
             }
-            Expression::This { line, expr_id} => {
+            Expression::This { line, expr_id } => {
                 if self.current_class == ClassType::TopLevel {
                     return Err(LoxError::InvalidThis(*line));
                 }

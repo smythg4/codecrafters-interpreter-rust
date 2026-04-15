@@ -552,7 +552,10 @@ impl<'de> Parser<'de> {
             }
             TokenKind::This => {
                 let expr_id = self.get_expr_id();
-                Ok(Expression::This{expr_id,line: token.line})
+                Ok(Expression::This {
+                    expr_id,
+                    line: token.line,
+                })
             }
             _ => Err(LoxError::InvalidToken(token.line, token.kind)),
         }
