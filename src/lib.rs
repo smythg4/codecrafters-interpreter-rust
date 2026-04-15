@@ -78,6 +78,8 @@ pub enum LoxError {
     InvalidThis(usize),
     #[error("[line {0}] A class '{1}' can't inherit from itself")]
     SelfInheritance(usize, String),
+    #[error("[line {0}] A class '{1}' tried to inherit from a non-Class")]
+    InvalidInheritence(usize, String),
 }
 
 impl LoxError {
@@ -95,6 +97,7 @@ impl LoxError {
                 | LoxError::Arity(_, _, _)
                 | LoxError::InvalidTypeProperties(_, _)
                 | LoxError::UndefinedProperty(_, _, _)
+                | LoxError::InvalidInheritence(_, _)
         )
     }
 }

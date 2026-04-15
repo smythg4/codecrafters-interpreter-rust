@@ -405,6 +405,11 @@ impl Interpreter {
                     .as_ref()
                     .map(|ref sc| self.evaluate_expression(sc))
                     .transpose()?;
+                match super_klass {
+                    None => {},
+                    Some(Value::LoxClass { .. }) => {},
+                    Some(_) => return Err(LoxError::InvalidInheritence(0, name.as_ref().into()))
+                }
                 let klass = Value::LoxClass {
                     name: Rc::clone(name),
                     methods: Rc::new(map),
