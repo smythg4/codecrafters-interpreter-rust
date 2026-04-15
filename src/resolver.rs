@@ -80,7 +80,6 @@ impl Resolver {
                     } = sc
                         && super_name.as_ref() == name.as_ref()
                     {
-                        
                         let err = LoxError::SelfInheritance(*line, super_name.as_ref().into());
                         errors.push(err);
                     } else if let Err(e) = self.resolve_expression(sc) {
@@ -269,7 +268,7 @@ impl Resolver {
                     return Err(LoxError::InvalidThis(*line));
                 }
                 self.resolve_local(*expr_id, "this");
-            },
+            }
             Expression::Super { line, expr_id, .. } => {
                 if [ClassType::TopLevel, ClassType::Class].contains(&self.current_class) {
                     return Err(LoxError::InvalidUseofSuper(*line));

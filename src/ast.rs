@@ -229,7 +229,7 @@ pub enum Expression {
         line: usize,
         expr_id: usize,
         method_name: Rc<str>,
-    }
+    },
 }
 
 impl std::fmt::Display for Expression {
@@ -277,7 +277,7 @@ impl std::fmt::Display for Expression {
                 write!(f, "{expr}.{name} = {value}")
             }
             Expression::This { .. } => write!(f, "this"),
-            Expression::Super { method_name, .. } => write!(f, "super.{method_name}")
+            Expression::Super { method_name, .. } => write!(f, "super.{method_name}"),
         }
     }
 }

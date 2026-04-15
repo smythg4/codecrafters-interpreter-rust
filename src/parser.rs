@@ -569,13 +569,17 @@ impl<'de> Parser<'de> {
                     expr_id,
                     line: token.line,
                 })
-            },
+            }
             TokenKind::Super => {
                 self.expect(TokenKind::Dot)?;
                 let method_token = self.expect(TokenKind::Ident)?;
                 let expr_id = self.get_expr_id();
-                Ok(Expression::Super { line: method_token.line, expr_id, method_name: Rc::from(method_token.origin) })
-            },
+                Ok(Expression::Super {
+                    line: method_token.line,
+                    expr_id,
+                    method_name: Rc::from(method_token.origin),
+                })
+            }
             _ => Err(LoxError::InvalidToken(token.line, token.kind)),
         }
     }
